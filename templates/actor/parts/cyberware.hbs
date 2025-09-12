@@ -9,27 +9,94 @@
     </div>
 </div>
 
+<header class="cyberware-header">
+    <h2>{{CPLocal "Active Chipware"}}</h2>
+</header>
+<div class="chip-scroll-wrapper">
+    <div class="chipware-container" data-drop-target="active-chips">
+        {{#each gear.cyberware as |chip|}}
+        {{#with chip.system}}
+        {{#if (equals cyberwareType "CHIPWARE")}}
+        <div class="chipware field gear full-width" style="background-image: url('systems/cyberpunk2020/img/chip.png')" data-item-id="{{chip.id}}">
+            <span class="chip-name">{{chip.name}}</span>
+            <div class="chipware-slot item-delete" data-item-id="{{chip.id}}">X</div>
+        </div>
+        {{/if}}
+        {{/with}}
+        {{/each}}
+    </div>
+</div>
+<header class="cyberware-header">
+    <h2>{{CPLocal "Active Cyberware"}}</h2>
+</header>
+
+
+<div class="active-cyberware" style="background-image: url('systems/cyberpunk2020/img/grid-beige-big-tile.png')">
+    <div class="active-cyberware-right" >
+        {{#each cyberwareSegmentsRight}}
+        <section class="field-list cyberware-field-list active-cyberware-segment" style="grid-area: {{this.area}}">
+            <button type="button" class="collapsible">{{this.area}}</button>
+            {{#each ../gear.cyberware as |cyber|}}
+            <div class="field gear item-edit full-width" data-item-id="{{cyber.id}}">
+            <label>{{cyber.name}}</label>
+            {{#with cyber.system}}
+                <span>{{CPLocal "HumanityLossAbbrev"}}: {{humanityLoss}}</span>
+            {{/with}}
+                <span class="item-delete" data-item-id="{{id}}">X</span>
+            </div>
+            {{/each}}
+        </section>
+        {{/each}}
+    </div>
+
+    <div class="anatomy-image">
+        <img src="systems/cyberpunk2020/img/male-anatomy.png">
+    </div>
+    <div class="active-cyberware-left">
+        {{#each cyberwareSegmentsLeft}}
+        <section class="field-list cyberware-field-list active-cyberware-segment">
+            <button type="button" class="collapsible">{{this.area}}</button>
+            {{#each ../gear.cyberware as |cyber|}}
+            <div class="field gear item-edit full-width" data-item-id="{{cyber.id}}">
+            <label>{{cyber.name}}</label>
+            {{#with cyber.system}}
+                <span>{{CPLocal "HumanityLossAbbrev"}}: {{humanityLoss}}</span>
+            {{/with}}
+                <span class="item-delete" data-item-id="{{id}}">X</span>
+            </div>
+            {{/each}}
+        </section>
+         {{/each}}
+    </div>
+</div>
+
+<div class="cyberware-header">
+    <header>
+        <h2>{{CPLocal "Cyberware"}}</h2>
+    </header>
+</div>
 {{#if (equals items.length 0)}}
-    <div class="inactive">{{CPLocal "DragItemsPrompt"}}</div>
+<div class="inactive">{{CPLocal "DragItemsPrompt"}}</div>
 {{/if}}
 <div class="field-list">
     {{#each gear.cyberware as |cyber|}}
-        <div class="field gear item-edit full-width" data-item-id="{{cyber.id}}">
-            <div class="field-image" style="background-image: url({{cyber.img}})" data-item-id="{{cyber.id}}"></div>
-            <label>{{cyber.name}}</label>
-            <span class="flex-pad"></span>
-            {{#with cyber.system}}
-                <span>{{CPLocal "HumanityLossAbbrev"}}: {{humanityLoss}}</span>
-                {{#if cyberwareType}}
-                <span>
-                    <p class="inactive">{{cyberwareType}}
-                        {{~#if cyberwareSubtype~}}
-                        ({{cyberwareSubtype}})
-                        {{~/if}}</p>
-                </span>
-                {{/if}}
-            {{/with}}
-            <span class="item-delete" data-item-id="{{id}}">X</span>
+    <div class="field gear item-edit full-width" data-item-id="{{cyber.id}}">
+        <div class="field-image" data-item-id="{{cyber.id}}">
+            <img src={{cyber.img}}>
         </div>
+        <label>{{cyber.name}}</label>
+        {{#with cyber.system}}
+            <span>{{CPLocal "HumanityLossAbbrev"}}: {{humanityLoss}}</span>
+            {{#if cyberwareType}}
+            <span>
+            <p class="inactive">{{cyberwareType}}
+            {{~#if cyberwareSubtype~}}
+            ({{cyberwareSubtype}})
+            {{~/if}}</p>
+            </span>
+            {{/if}}
+        {{/with}}
+        <span class="item-delete" data-item-id="{{id}}">X</span>
+    </div>
     {{/each}}
 </div>
