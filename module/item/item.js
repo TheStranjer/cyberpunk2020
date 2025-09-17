@@ -1,4 +1,4 @@
-import { weaponTypes, rangedAttackTypes, meleeAttackTypes, fireModes, ranges, rangeDCs, rangeResolve, attackSkills, martialActions, strengthDamageBonus } from "../lookups.js"
+import { weaponTypes, rangedAttackTypes, meleeAttackTypes, fireModes, ranges, attackSkills, martialActions, strengthDamageBonus, getMartialActionBonus } from "../lookups.js"
 import { Multiroll, makeD10Roll }  from "../dice.js"
 import { clamp, deepLookup, localize, localizeParam, rollLocation } from "../utils.js"
 import { CyberpunkActor } from "../actor/actor.js";
@@ -512,11 +512,23 @@ export class CyberpunkItem extends Item {
     let results = new Multiroll(localizeParam("MartialTitle", {action: localize(action), martialArt: localize("Skill" + martialArt)}), flavor);
 
     // All martial arts are contested
-    let attackRoll = new Roll(`1d10x10+@stats.ref.total+@attackBonus+@keyTechniqueBonus`, {
-      stats: system.stats,
-      attackBonus: martialSkillLevel,
-      keyTechniqueBonus: keyTechniqueBonus,
-    });
+    // Bonus for a specific action from the selected martial art
+    const actionBonus = getMartialActionBonus(martialArt, action);
+
+    // Additional modifier from the dialog
+    const extraMod = Number(attackMods.extraMod || 0);
+
+    // Martial arts throw formula: reflex + skill level + special technique + action bonus + additional mod
+    let attackRoll = new Roll(
+      `1d10x10 + @stats.ref.total + @attackBonus + @keyTechniqueBonus + @actionBonus + @extraMod`, 
+      {
+        stats: system.stats,
+        attackBonus: martialSkillLevel,
+        keyTechniqueBonus: keyTechniqueBonus,
+        actionBonus: actionBonus,
+        extraMod: extraMod
+      }
+    );
     results.addRoll(attackRoll, {name: "Attack"});
     let damageFormula = "";
 

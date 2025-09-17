@@ -178,6 +178,20 @@ export class CyberpunkActor extends Actor {
     }
 
     // Apply wound effects
+    const move = stats.ma;
+    move.run = move.total * 3;
+    move.leap = Math.floor(move.run / 4); 
+
+    const body = stats.bt;
+    body.carry = body.total * 10;
+    body.lift = body.total * 40;
+    body.modifier = btmFromBT(body.total);
+
+    system.carryWeight = 0;
+    equippedItems.forEach(item => {
+      let weight = item.system.weight || 0;
+      system.carryWeight += parseFloat(weight);
+    });
     // Change stat total, but leave a record of the difference in stats.[statName].woundMod
     // Modifies the very-end-total, idk if this'll need to change in the future
     let woundState = this.woundState();
@@ -291,11 +305,24 @@ export class CyberpunkActor extends Actor {
     console.log("lang:", game.i18n);
 
     const nameLoc = localize("Skill" + skillName);
-    // Localization may return the original key, so we check both options
-    const targetName = nameLoc.includes("Skill") ? skillName : nameLoc;
+    const prefixLoc = localize("SkillMartialArts");
 
-    const skillItem = this.itemTypes.skill.find(s => s.name === targetName);
-    if (!skillItem) return 0; // ← no skill — return 0 instead of undefined
+    const shortName = nameLoc.includes("Skill") ? null : nameLoc;
+    const candidates = new Set();
+
+    if (shortName) candidates.add(shortName);
+
+    if (shortName && !prefixLoc.includes("Skill")) {
+      candidates.add(`${prefixLoc}: ${shortName}`);
+    }
+
+    candidates.add(skillName);
+
+    const skillItem = this.itemTypes.skill.find(s =>
+      candidates.has(s.name) || (shortName && s.name.endsWith(`: ${shortName}`))
+    );
+
+    if (!skillItem) return 0;
     return CyberpunkActor.realSkillValue(skillItem);
   }
 
