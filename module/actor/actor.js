@@ -305,11 +305,24 @@ export class CyberpunkActor extends Actor {
     console.log("lang:", game.i18n);
 
     const nameLoc = localize("Skill" + skillName);
-    // Localization may return the original key, so we check both options
-    const targetName = nameLoc.includes("Skill") ? skillName : nameLoc;
+    const prefixLoc = localize("SkillMartialArts");
 
-    const skillItem = this.itemTypes.skill.find(s => s.name === targetName);
-    if (!skillItem) return 0; // ← no skill — return 0 instead of undefined
+    const shortName = nameLoc.includes("Skill") ? null : nameLoc;
+    const candidates = new Set();
+
+    if (shortName) candidates.add(shortName);
+
+    if (shortName && !prefixLoc.includes("Skill")) {
+      candidates.add(`${prefixLoc}: ${shortName}`);
+    }
+
+    candidates.add(skillName);
+
+    const skillItem = this.itemTypes.skill.find(s =>
+      candidates.has(s.name) || (shortName && s.name.endsWith(`: ${shortName}`))
+    );
+
+    if (!skillItem) return 0;
     return CyberpunkActor.realSkillValue(skillItem);
   }
 
