@@ -178,6 +178,20 @@ export class CyberpunkActor extends Actor {
     }
 
     // Apply wound effects
+    const move = stats.ma;
+    move.run = move.total * 3;
+    move.leap = Math.floor(move.run / 4); 
+
+    const body = stats.bt;
+    body.carry = body.total * 10;
+    body.lift = body.total * 40;
+    body.modifier = btmFromBT(body.total);
+
+    system.carryWeight = 0;
+    equippedItems.forEach(item => {
+      let weight = item.system.weight || 0;
+      system.carryWeight += parseFloat(weight);
+    });
     // Change stat total, but leave a record of the difference in stats.[statName].woundMod
     // Modifies the very-end-total, idk if this'll need to change in the future
     let woundState = this.woundState();
