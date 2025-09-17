@@ -148,7 +148,7 @@
 .field-list {
   width: 100%;
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: minmax(0,1fr) minmax(0,1fr);
   gap: 3px;
   grid-auto-rows: auto;
   flex-grow: 0;
@@ -223,9 +223,6 @@ details[open] summary ~ * {
   border-width: 2px;
   border-style: solid;
   border-color: black;
-}
-.cyberpunk .field select option {
-  background-color: black;
 }
 .cyberpunk .field > * {
   padding: 2px 3px 2px 0px;
@@ -304,6 +301,13 @@ details[open] summary ~ * {
   line-height: normal;
   width: auto;
 }
+/* Drop-down lists: both items and group headings are readable on a dark background */
+.cyberpunk .field select option,
+.cyberpunk .field select optgroup {
+  background-color: black !important;
+  color: whitesmoke !important;
+  font-weight: 600;
+}
 /* Text and number inputs — same height as selects */
 .cyberpunk .field input[type="text"],
 .cyberpunk .field input[type="number"] {
@@ -379,6 +383,25 @@ details[open] summary ~ * {
   font-weight: bold;
   border: 0 none;
 }
+/* Compact mini-fields in the stats header */
+.statsrow > div.stat .flexrow { gap: 0; align-items: center; }
+
+.statsrow > div.stat .stat-base,
+.statsrow > div.stat .stat-temp {
+  width: 1.8em;
+  height: 18px;
+  line-height: 18px;
+  padding: 0;
+  box-sizing: border-box;
+  text-align: center;
+}
+
+.statsrow > div.stat .stat-mod {
+  padding: 0 2px;
+  height: 18px;
+  line-height: 18px;
+}
+
 .statsrow > div.stat + .stat {
   margin-left: 3px;
 }
@@ -818,9 +841,8 @@ div.statderive .value.rightborder {
  *  Weapon‑modifier dialog
  * ----------------------------------------------------------------- */
 #weapon-modifier {
-  width: fit-content !important;
-  min-width: 780px;
-  max-width: calc(100vw - 60px);
+  min-width: 460px;
+  max-width: min(820px, calc(100vw - 60px));
 }
 
 #weapon-modifier .window-content {
@@ -828,6 +850,23 @@ div.statderive .value.rightborder {
   max-height: calc(100vh - 160px) !important;
   overflow-y: auto !important;
   padding-right: 8px !important;
+}
+
+#weapon-modifier .field { min-width: 0; }
+#weapon-modifier .field > * { min-width: 0; }
+
+#weapon-modifier .field select {
+  min-width: 0;
+  max-width: 100%;
+}
+
+#weapon-modifier .field input[type="text"],
+#weapon-modifier .field input[type="number"] {
+  min-width: 0;
+}
+
+@media (max-width: 560px) {
+  #weapon-modifier .field-list { grid-template-columns: 1fr; }
 }
 
 
