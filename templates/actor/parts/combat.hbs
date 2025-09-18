@@ -49,17 +49,35 @@
         <header>
             <h2>{{CPLocal "Weapons"}}</h2>
         </header>
+
+        {{!-- Normal weapons --}}
         {{#each gear.weapons as |weapon|}}
             <div class="fire-weapon field action" data-item-id="{{weapon.id}}">
-                <div class="no-action field-image item-edit" style="background-image: url({{weapon.img}})" data-item-id="{{weapon.id}}"></div>
-                <label class="name">{{weapon.name}}</label>
+            <div class="no-action field-image item-edit" style="background-image: url({{weapon.img}})" data-item-id="{{weapon.id}}"></div>
+            <label class="name">{{weapon.name}}</label>
+            <span class="flex-pad"></span>
+            <span>
+                {{#with weapon.system}}
+                <div class="field-label inactive">{{#if attackType}}{{attackType}}{{else}}{{weaponType}}{{/if}}</div>
+                {{/with}}
+            </span>
+            </div>
+        {{/each}}
+
+        {{!-- Cyberweapons --}}
+        {{#each gear.cyberware as |cyber|}}
+            {{#if (equals cyber.system.CyberWorkType.Type "Weapon")}}
+            <div class="fire-weapon field action" data-item-id="{{cyber.id}}">
+                <div class="no-action field-image item-edit" style="background-image: url({{cyber.img}})" data-item-id="{{cyber.id}}"></div>
+                <label class="name">{{cyber.name}}</label>
                 <span class="flex-pad"></span>
                 <span>
-                    {{#with weapon.system}}
-                    <div class="field-label inactive">{{#if attackType}}{{attackType}}{{else}}{{weaponType}}{{/if}}</div>
-                    {{/with}}
+                {{#with cyber.system.CyberWorkType.Weapon}}
+                <div class="field-label inactive">{{#if attackType}}{{attackType}}{{else}}{{weaponType}}{{/if}}</div>
+                {{/with}}
                 </span>
             </div>
+            {{/if}}
         {{/each}}
     </section>
 </div>

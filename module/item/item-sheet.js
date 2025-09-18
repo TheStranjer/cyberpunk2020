@@ -1,4 +1,4 @@
-import { weaponTypes, sortedAttackTypes, concealability, availability, reliability, attackSkills, meleeAttackTypes, getStatNames } from "../lookups.js";
+import { weaponTypes, meleeAttackTypes, rangedAttackTypes, attackSkills, concealability, availability, reliability } from "../lookups.js";
 import { formulaHasDice } from "../dice.js";
 import { localize } from "../utils.js";
 import { getMartialKeyByName } from '../translations.js'
@@ -67,23 +67,18 @@ export class CyberpunkItemSheet extends ItemSheet {
 
   _prepareWeapon(sheet) {
     sheet.weaponTypes = Object.values(weaponTypes).sort();
-    if(this.item.system.weaponType === weaponTypes.melee) {
-      sheet.attackTypes = Object.values(meleeAttackTypes).sort();
-    }
-    else {
-      sheet.attackTypes = sortedAttackTypes;
-    }
+    const isMelee = this.item.system.weaponType === weaponTypes.melee;
+    sheet.attackTypes = isMelee ? Object.values(meleeAttackTypes).sort() : Object.values(rangedAttackTypes).sort();
     sheet.concealabilities = Object.values(concealability);
     sheet.availabilities = Object.values(availability);
     sheet.reliabilities = Object.values(reliability);
 
-    sheet.attackSkills = [
-      ...attackSkills[this.item.system.weaponType]
-      .map(x => localize("Skill"+x)), 
-      ...(this.actor?.trainedMartials().
-      map(name => localize('Skill'+getMartialKeyByName(name))) || [])
-    ];
-
+    const actor = this.item?.parent;
+    const wType = this.item.system.weaponType || weaponTypes.pistol;
+    const baseKeys = attackSkills[wType] || [];
+    const includeMartials = (wType === weaponTypes.melee) && (this.item.system.attackType === meleeAttackTypes.martial);
+    const martialKeys = includeMartials ? (actor?.trainedMartials?.() || []).map(getMartialKeyByName) : [];
+    sheet.attackSkills = [...baseKeys, ...martialKeys].map(k => localize("Skill"+k));
 
     // TODO: Be not so inefficient for this
     if(!sheet.attackSkills.length && this.actor) {
@@ -199,6 +194,24 @@ _prepareCyberware(sheet) {
     { key: "Nervous", label: L("Nervous") }
   ];
   sheet.cw.bodyZones = bodyAll;
+
+  sheet.weaponTypes = Object.values(weaponTypes).sort();
+  const cwW = this.item.system?.CyberWorkType?.Weapon || {};
+  const isMelee = cwW.weaponType === weaponTypes.melee;
+  sheet.attackTypes = isMelee ? Object.values(meleeAttackTypes).sort() : Object.values(rangedAttackTypes).sort();
+  sheet.concealabilities = Object.values(concealability);
+  sheet.availabilities = Object.values(availability);
+  sheet.reliabilities = Object.values(reliability);
+
+  const actor = this.item?.parent;
+  const baseKeys = attackSkills[cwW.weaponType || weaponTypes.pistol] || [];
+  const includeMartials = isMelee && (cwW.attackType === meleeAttackTypes.martial);
+  const martialKeys = includeMartials ? (actor?.trainedMartials?.() || []).map(getMartialKeyByName) : [];
+  sheet.attackSkills = [...baseKeys, ...martialKeys].map(k => localize("Skill"+k));
+  
+  if (!sheet.attackSkills.length && this.actor) {
+    sheet.attackSkills = (this.actor.itemTypes.skill || []).map(s => s.name).sort((a, b) => a.localeCompare(b));
+  }
 
   // Allowed parent cyberware type + список для редактируемого cyberwareType
   const defaults = ["CYBEROPTIC", "CYBEREAR", "CYBERARM", "CYBERHAND", "CYBERLEG", "CYBERFOOT", "IMPLANT"];
@@ -429,7 +442,7 @@ _prepareCyberware(sheet) {
 
     // Пересчитывать свободные слоты при смене "Slots provided"
     html.find('input[name="system.CyberWorkType.OptionsAvailable"]').on('change', (ev) => {
-      this._onSubmit(ev);     // сохраняем новое значение и перерендериваем
+      this._onSubmit(ev);
     });
   }
 

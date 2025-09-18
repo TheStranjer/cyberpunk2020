@@ -415,7 +415,7 @@ export class CyberpunkActorSheet extends ActorSheet {
         // We have to get the values as an iterator; else if multiple targets share names, it'd turn a set with size 2 to one with size 1
         modifierGroups = rangedModifiers(item, targetTokens);
       }
-      else if (item.system.attackType === meleeAttackTypes.martial){
+      else if ((item._getWeaponSystem?.().attackType) === meleeAttackTypes.martial) {
         modifierGroups = martialOptions(this.actor);
       }
       else {
