@@ -21,12 +21,9 @@
             {{#with cyber.system}}
                 <span>{{CPLocal "HumanityLossAbbrev"}}: {{humanityLoss}}</span>
                 {{#if cyberwareType}}
-                <span>
-                    <p class="inactive">{{cyberwareType}}
-                        {{~#if cyberwareSubtype~}}
-                        ({{cyberwareSubtype}})
-                        {{~/if}}</p>
-                </span>
+                    <span class="cw-type">
+                        <p class="inactive">{{cyberwareType}}</p>
+                    </span>
                 {{/if}}
             {{/with}}
             <span class="item-delete" data-item-id="{{id}}">X</span>
