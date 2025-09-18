@@ -705,8 +705,32 @@ div.statderive .value.rightborder {
   display: flex;
   flex-flow: column nowrap;
 }
-.combat-tab .combat-rolls .field + .field {
-  margin-left: 5px;
+/* отступы нужны только для старого flex-блока; в новой сетке .field-list их не должно быть */
+.combat-tab .combat-rolls .flexrow .field + .field { margin-left: 5px; }
+/* шапка боевых бросков, как в "Снаряжении": две колонки */
+.combat-tab .combat-rolls .field-list { grid-template-columns: 1fr 1fr; }
+
+.combat-tab .combat-rolls .field-list .field label { min-width: 0; }
+
+.combat-tab .combat-rolls .field-list .field input[type="number"] {
+  flex: 0 0 2.6em;
+  width: 2.6em;
+  min-width: 2.6em;
+  text-align: center;
+}
+/* Skills: не растягивать инпут уровня по высоте строки */
+.cyberpunk .field.skill input[type="number"] {
+  align-self: center;
+  height: 24px;
+  line-height: 24px;
+}
+
+/* компактная ширина, как и раньше */
+.cyberpunk .field.skill input[type="number"].smallnumber {
+  flex: 0 0 2.5em;
+  width: 2.5em;
+  min-width: 2.5em;
+  text-align: center;
 }
 .combat-tab .weapons-list {
   grid-area: weapons;
@@ -1006,6 +1030,72 @@ div.statderive .value.rightborder {
   padding-right: 0 !important;
 }
 
+/* === Cyberware tab row (only) === */
+.cyberpunk .tab[data-tab="cyberware"] .field.gear {
+  display: flex;
+  align-items: stretch;
+}
+
+/* всем детям — наследовать фон и уметь сжиматься */
+.cyberpunk .tab[data-tab="cyberware"] .field.gear > * { min-width: 0; }
+
+/* Единый чёрный фон у строки импланта, как у оружия */
+.cyberpunk .tab[data-tab="cyberware"] .field.gear {
+  background-color: black;
+}
+
+
+/* иконка — фикс. ширина, не сжимается до 0 */
+.cyberpunk .tab[data-tab="cyberware"] .field.gear .field-image {
+  flex: 0 0 24px;
+  width: 24px;
+  min-width: 24px;
+  align-self: stretch;
+  height: auto;
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: contain;
+}
+
+/* название — занимает всё, что между иконкой и правой частью */
+.cyberpunk .tab[data-tab="cyberware"] .field.gear label {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+/* тонкий «разделитель», чтобы не отъедал ширину */
+.cyberpunk .tab[data-tab="cyberware"] .field.gear .flex-pad {
+  flex: 0 0 8px;
+}
+
+/* блок "ПЧ: N" — компактный, не растягиваем */
+.cyberpunk .tab[data-tab="cyberware"] .field.gear > span:nth-last-child(3) {
+  flex: 0 0 auto;
+  margin-left: 8px;
+}
+
+/* тип (справа) — сжимается, но не давит имя; макс ~40% строки */
+.cyberpunk .tab[data-tab="cyberware"] .field.gear .cw-type {
+  flex: 0 1 40%;
+  min-width: 0;
+  margin-left: 8px;
+}
+
+.cyberpunk .tab[data-tab="cyberware"] .field.gear .cw-type > p {
+  margin: 0;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* уж совсем узкое окно — разрешаем перенос типа по словам */
+@media (max-width: 560px) {
+  .cyberpunk .tab[data-tab="cyberware"] .field.gear .cw-type > p {
+    white-space: normal;
+    word-break: break-word;
+  }
+}
 /* -- Skill modifier checkbox ------------------------------------ */
 .skill-mod-toggle input[type=checkbox] {
   display: inline-block !important;

@@ -1,5 +1,5 @@
-import { weaponTypes, rangedAttackTypes, meleeAttackTypes, fireModes, ranges, attackSkills, martialActions, strengthDamageBonus, getMartialActionBonus } from "../lookups.js"
-import { Multiroll, makeD10Roll }  from "../dice.js"
+import { weaponTypes, rangedAttackTypes, meleeAttackTypes, fireModes, rangedModifiers, ranges, rangeDCs, rangeResolve, strengthDamageBonus, getMartialActionBonus, martialActions } from "../lookups.js"
+import { Multiroll, makeD10Roll } from "../dice.js"
 import { clamp, deepLookup, localize, localizeParam, rollLocation } from "../utils.js"
 import { CyberpunkActor } from "../actor/actor.js";
 
@@ -22,10 +22,27 @@ export class CyberpunkItem extends Item {
         break;
     }
   }
+  _getWeaponSystem() {
+    if (this.type === "weapon") return this.system;
+    const cwt = this.system?.CyberWorkType;
+    if (this.type === "cyberware" && cwt?.Type === "Weapon") return cwt.Weapon || {};
+    return this.system;
+  }
+
+  async __setWeaponField(field, value) {
+    if (this.type === "weapon") {
+      return await this.update({[`system.${field}`]: value});
+    }
+    const cwt = this.system?.CyberWorkType;
+    if (this.type === "cyberware" && cwt?.Type === "Weapon") {
+      return await this.update({[`system.CyberWorkType.Weapon.${field}`]: value});
+    }
+    return null;
+  }
 
   isRanged() {
-    let system = this.system;
-    return !(system.weaponType === "Melee" || system.weaponType === "Exotic" && Object.keys(meleeAttackTypes).includes(system.attackType));
+    const system = this._getWeaponSystem();
+    return !(system.weaponType === "Melee" || (system.weaponType === "Exotic" && Object.keys(meleeAttackTypes).includes(system.attackType)));
   }
   
   _prepareWeaponData(data) {
@@ -85,13 +102,14 @@ export class CyberpunkItem extends Item {
    * @param {Event} event   The originating click event
    * @private
    */
-  async roll() {
-    // This is where the item would make a roll in the chat or something like that.
+  roll() {
     switch (this.type) {
       case "weapon":
         this.__weaponRoll();
         break;
-
+      case "cyberware":
+        if (this.system?.CyberWorkType?.Type === "Weapon") this.__weaponRoll();
+        break;
       default:
         break;
     }
@@ -114,6 +132,7 @@ export class CyberpunkItem extends Item {
     fireMode,
     extraMod
   }) {
+    const sys = this._getWeaponSystem ? this._getWeaponSystem() : this.system;
     let terms = []
     if(!!targetArea) {
       terms.push(-4);
@@ -152,7 +171,9 @@ export class CyberpunkItem extends Item {
     // +1/-1 per 10 bullets fired. + if close, - if medium onwards.
     // Friend's copy of the rulebook states penalties/bonus for all except point blank
     if(fireMode === fireModes.fullAuto) {
-      let bullets = Math.min(this.system.shotsLeft, this.system.rof);
+      const shotsLeft = Number(sys.shotsLeft) || 0;
+      const rof = Number(sys.rof) || 0;
+      const bullets = Math.min(shotsLeft, rof);
       // If close range, add, else subtract
       let multiplier = 
           (range === ranges.close) ? 1 
@@ -200,7 +221,7 @@ export class CyberpunkItem extends Item {
   // Look into `modifiers.js` for the modifier obect
   __weaponRoll(attackMods, targetTokens) {
     let owner = this.actor;
-    let system = this.system;
+    const system = this._getWeaponSystem();
 
     if (system.shotsLeft <= 0) {
       ui.notifications.warn(localize("NoAmmo"));
@@ -238,11 +259,13 @@ export class CyberpunkItem extends Item {
   }
 
   __getFireModes() {
-    if (this.type !== "weapon") {
-      console.error(`${this.name} is not a weapon, and therefore has no fire modes`)
+    const isWeaponDoc = this.type === "weapon" || (this.type === "cyberware" && this.system?.CyberWorkType?.Type === "Weapon");
+    if (!isWeaponDoc) {
+      console.error(`${this.name} is not a weapon, and therefore has no fire modes`);
       return [];
     }
-    if (this.system.attackType === rangedAttackTypes.auto || this.system.attackType === rangedAttackTypes.autoshotgun){
+    const sys = this._getWeaponSystem ? this._getWeaponSystem() : this.system;
+    if (sys.attackType === rangedAttackTypes.auto || sys.attackType === rangedAttackTypes.autoshotgun) {
       return [fireModes.fullAuto, fireModes.suppressive, fireModes.threeRoundBurst, fireModes.semiAuto];
     }
     return [fireModes.semiAuto];
@@ -250,7 +273,7 @@ export class CyberpunkItem extends Item {
 
   // Roll just the attack roll of a weapon, return it
   async attackRoll(attackMods) {
-    let system = this.system;
+    const system = this._getWeaponSystem();
     let isRanged = this.isRanged();
 
     let attackTerms = ["@stats.ref.total"];
@@ -267,9 +290,13 @@ export class CyberpunkItem extends Item {
       attackTerms.push(system.accuracy);
     }
 
+    const attackSkillKey = (system?.attackSkill ?? this.system?.attackSkill) || "";
+    const attackSkillValRaw = this.actor?.getSkillVal?.(attackSkillKey);
+    const attackSkillVal = Number.isFinite(Number(attackSkillValRaw)) ? Number(attackSkillValRaw) : 0;
+
     return await makeD10Roll(attackTerms, {
       stats: this.actor.system.stats,
-      attackSkill: this.actor.getSkillVal(this.system.attackSkill)
+      attackSkill: attackSkillVal
     }).evaluate();
   }
 
@@ -279,7 +306,7 @@ export class CyberpunkItem extends Item {
    * @returns 
    */
   async __fullAuto(attackMods, targetTokens) {
-      let system = this.system;
+      const system = this._getWeaponSystem();
       // The kind of distance we're attacking at, so we can display Close: <50m or something like that
       let actualRangeBracket = rangeResolve[attackMods.range](system.range);
       let DC = rangeDCs[attackMods.range];
@@ -290,7 +317,7 @@ export class CyberpunkItem extends Item {
       for (let i = 0; i < targetCount; i++) {
           let attackRoll = await this.attackRoll(attackMods);
           let roundsFired = Math.min(system.shotsLeft, system.rof / targetCount);
-          await this.update({"system.shotsLeft": system.shotsLeft - roundsFired});
+          await this.__setWeaponField("shotsLeft", system.shotsLeft - roundsFired);
           let roundsHit = Math.min(roundsFired, attackRoll.total - DC);
           if (roundsHit < 0) {
               roundsHit = 0;
@@ -328,7 +355,7 @@ export class CyberpunkItem extends Item {
   }
 
   async __threeRoundBurst(attackMods) {
-      let system = this.system;
+      const system = this._getWeaponSystem();
       // The kind of distance we're attacking at, so we can display Close: <50m or something like that
       let actualRangeBracket = rangeResolve[attackMods.range](system.range);
       let DC = rangeDCs[attackMods.range];
@@ -366,17 +393,17 @@ export class CyberpunkItem extends Item {
       };
       let roll = new Multiroll(localize("ThreeRoundBurst"));
       roll.execute(undefined, "systems/cyberpunk2020/templates/chat/multi-hit.hbs", templateData);
-      this.update({"system.shotsLeft": system.shotsLeft - roundsFired});
+      await this.__setWeaponField("shotsLeft", system.shotsLeft - roundsFired);
       return roll;
   }
 
   async __suppressiveFire(mods = {}) {
-    const sys = this.system;
-    const rounds = clamp(Number(mods.roundsFired  ?? sys.rof), 1, sys.shotsLeft);
-    const width = Math.max(2,  Number(mods.zoneWidth    ?? 2));
-    const targets = Math.max(1,  Number(mods.targetsCount ?? 1));
+    const sys = this._getWeaponSystem();
+    const rounds = clamp(Number(mods.roundsFired) || Number(sys.rof) || 0, 1, Number(sys.shotsLeft) || 0);
+    const width = Math.max(2, Number(mods.zoneWidth ?? 2));
+    const targets = Math.max(1, Number(mods.targetsCount ?? 1));
 
-    await this.update({ "system.shotsLeft": sys.shotsLeft - rounds });
+    await this.__setWeaponField("shotsLeft", sys.shotsLeft - rounds);
 
     const saveDC = Math.ceil(rounds / width);
     const dmgFormula = sys.damage || "1d6";
@@ -405,12 +432,12 @@ export class CyberpunkItem extends Item {
     ChatMessage.create({
       speaker: ChatMessage.getSpeaker({ actor: this.actor }),
       content: html,
-      flags  : { cyberpunk2020: { fireMode: "suppressive" } }
+      flags : { cyberpunk2020: { fireMode: "suppressive" } }
     });
   }
 
   async __semiAuto(attackMods) {
-      let system = this.system;
+      const system = this._getWeaponSystem();
       console.log("System:", system);
       
       // The range we're shooting at
@@ -458,7 +485,7 @@ export class CyberpunkItem extends Item {
       let roll = new Multiroll(localize("SemiAuto"));
       roll.execute(undefined, "systems/cyberpunk2020/templates/chat/multi-hit.hbs", templateData);
 
-      this.update({"system.shotsLeft": system.shotsLeft - roundsFired});
+      await this.__setWeaponField("shotsLeft", system.shotsLeft - roundsFired);
       
       return roll;
   }
@@ -468,7 +495,8 @@ export class CyberpunkItem extends Item {
       let attackRoll = await this.attackRoll(attackMods);
 
       // Take into account the CyberTerminus modifier for damage
-      let damageFormula = `${this.system.damage}+@strengthBonus`;
+      const system = this._getWeaponSystem ? this._getWeaponSystem() : this.system;
+      let damageFormula = `${system.damage}+@strengthBonus`;
       if (attackMods.cyberTerminus) {
           switch (attackMods.cyberTerminus) {
               case "CyberTerminusX2":

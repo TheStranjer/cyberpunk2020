@@ -250,15 +250,42 @@
 
   {{!-- ===== Weapon ===== --}}
   {{#if (equals system.CyberWorkType.Type "Weapon")}}
-    <div class="field">
-      <label>{{CPLocal "CWT_Weapon_Select"}}</label>
-      <span class="flex-pad"></span>
-      <select class="cw-select-weapon">
-        <option value=""></option>
-        {{#each cw.weaponOptions as |w|}}
-          <option value="{{w.id}}" {{#if (equals ../system.CyberWorkType.ItemId w.id)}}selected{{/if}}>{{w.name}}</option>
-        {{/each}}
-      </select>
+    <div class="field span-two-cells">
+      <div class="field-list cw-weapon-grid">
+        {{> (template "fields/select") label="WeaponType" edit="system.CyberWorkType.Weapon.weaponType" choices=weaponTypes}}
+        {{> (template "fields/select") label="AttackType" edit="system.CyberWorkType.Weapon.attackType" choices=attackTypes allowBlank=true}}
+
+        {{> (template "fields/string") label="Damage" edit="system.CyberWorkType.Weapon.damage"}}
+        {{> (template "fields/number") label="Accuracy" edit="system.CyberWorkType.Weapon.accuracy"}}
+
+        {{> (template "fields/number") label="Range" edit="system.CyberWorkType.Weapon.range"}}
+        {{> (template "fields/boolean") label="AP" edit="system.CyberWorkType.Weapon.ap"}}
+
+        {{> (template "fields/number") label="ShotsLeft" edit="system.CyberWorkType.Weapon.shotsLeft"}}
+        {{> (template "fields/number") label="Shots" edit="system.CyberWorkType.Weapon.shots"}}
+
+        {{> (template "fields/number") label="RoF" edit="system.CyberWorkType.Weapon.rof"}}
+        {{> (template "fields/select") label="Reliability" edit="system.CyberWorkType.Weapon.reliability" choices=reliabilities}}
+
+        <div class="field">
+          <label for="system.CyberWorkType.Weapon.attackSkill">{{CPLocal "AttackSkill"}}</label>
+          <div class="flex-pad"></div>
+          {{#if (equals system.CyberWorkType.Weapon.weaponType 'Exotic')}}
+            <datalist id="possibleSkillsCW">
+              {{#each attackSkills as |skill|}}<option value="{{skill}}">{{skill}}</option>{{/each}}
+            </datalist>
+            <input type="text" list="possibleSkillsCW" placeholder="{{CPLocal 'AttackSkill'}}" name="system.CyberWorkType.Weapon.attackSkill" value="{{system.CyberWorkType.Weapon.attackSkill}}">
+          {{else}}
+            <select name="system.CyberWorkType.Weapon.attackSkill">
+              {{#each attackSkills as |skill|}}
+                <option value="{{skill}}" {{#if (equals ../system.CyberWorkType.Weapon.attackSkill skill)}}selected{{/if}}>{{skill}}</option>
+              {{/each}}
+            </select>
+          {{/if}}
+        </div>
+
+        {{> (template "fields/string") label="AmmoType" edit="system.CyberWorkType.Weapon.ammoType"}}
+      </div>
     </div>
   {{/if}}
 

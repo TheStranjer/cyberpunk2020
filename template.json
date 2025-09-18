@@ -907,7 +907,30 @@
 				"SDP": 0,
 				"MountPolicy": [],
 
-				"ChipSkills": {}
+				"ChipSkills": {},
+
+				"Weapon": {
+					"weaponType": "Pistol",
+					"accuracy": 0,
+					"concealability": "P",
+					"availability": "common",
+					"ammoType": "9mm",
+					"damage": "2d6+1",
+					"rangeDamages": {
+						"pointBlank": "",
+						"close": "",
+						"medium": "",
+						"far": ""
+					},
+					"ap": false,
+					"shotsLeft": 0,
+					"shots": 0,
+					"rof": 0,
+					"reliability": "ST",
+					"range": 0,
+					"attackType": "",
+					"attackSkill": "ref"
+				}
 			}
 		},
 		"vehicle": {
