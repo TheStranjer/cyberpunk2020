@@ -216,34 +216,97 @@ _prepareCyberware(sheet) {
   // Allowed parent cyberware type + список для редактируемого cyberwareType
   const defaults = ["CYBEROPTIC", "CYBEREAR", "CYBERARM", "CYBERHAND", "CYBERLEG", "CYBERFOOT", "IMPLANT"];
 
+  const pickType = (t) => {
+    if (typeof t === "string") return t.trim();
+    if (t && typeof t === "object") {
+      if (typeof t.key === "string") return t.key.trim();
+      if (typeof t.value === "string") return t.value.trim();
+      if (typeof t.name === "string") return t.name.trim();
+    }
+    return null;
+  };
+
   const worldTypes = Array.from(game.items ?? [])
     .filter(i => i.type === "cyberware")
-    .map(i => i.system?.cyberwareType)
+    .map(i => pickType(i.system?.cyberwareType))
     .filter(Boolean);
 
   const actorTypes = this.actor
     ? (this.actor.itemTypes.cyberware ?? [])
-        .map(i => i.system?.cyberwareType)
+        .map(i => pickType(i.system?.cyberwareType))
         .filter(Boolean)
     : [];
 
   const availableTypes = Array.from(new Set([...defaults, ...worldTypes, ...actorTypes]))
+    .filter(t => typeof t === "string" && t.length)
     .sort((a, b) => a.localeCompare(b));
 
-  // Включаем текущий тип, если вдруг его нет в сборке
   const curType = this.item.system?.cyberwareType;
   if (curType && !availableTypes.includes(curType)) availableTypes.unshift(curType);
 
-  // Для селекта "Type" partial ждёт МАССИВ СТРОК (иначе будут [object Object] и/или .split-ошибка)
   sheet.cw.cyberwareTypeOptions = availableTypes;
+  sheet.cw.parentCwTypeOptions = Array.from(availableTypes);
 
-  // Где нужно выводить «value/label» отдельными полями — оставляем массив объектов
-  sheet.cw.parentCwTypeOptions = availableTypes.map(t => ({ key: t, label: t }));
-
-  // Implant: «slots remaining» (пока без авто-учёта модулей)
+  // Implant: free/taken options with automatic module accounting
   const provided = Number(this.item.system?.CyberWorkType?.OptionsAvailable) || 0;
-  const used = 0; // автоучёт модулей добавим позже
+  let used = 0;
+  if (this.actor) {
+    const all = this.actor.items?.contents || [];
+    const selfId = this.item.id;
+    used = all
+      .filter(i => i.type === "cyberware" && i.system?.Module?.IsModule && i.system?.Module?.ParentId === selfId)
+      .reduce((sum, m) => sum + (Number(m.system?.Module?.SlotsTaken) || 0), 0);
+  }
+  sheet.cw.implantSlotsUsed = used;
+  sheet.cw.implantSlotsTotal = provided;
   sheet.cw.implantSlotsLeft = Math.max(0, provided - used);
+
+  // Module: implants available on the actor that match the type
+  const isModule = !!this.item.system?.Module?.IsModule;
+  if (isModule && this.actor) {
+    const needType = this.item.system?.Module?.AllowedParentCyberwareType || "";
+    const all = this.actor.items?.contents || [];
+    // count the available slots for each candidate
+    const leftFor = (p) => {
+      const provided = Number(p.system?.CyberWorkType?.OptionsAvailable || 0);
+      const used = all
+        .filter(i => i.type === "cyberware" && i.system?.Module?.IsModule && i.system?.Module?.ParentId === p.id)
+        .reduce((sum, m) => sum + (Number(m.system?.Module?.SlotsTaken) || 0), 0);
+      return Math.max(0, provided - used);
+    };
+
+    sheet.cw.parentImplants = all
+      .filter(i =>
+        i.type === "cyberware" &&
+        (i.system?.CyberWorkType?.Type === "Implant") &&
+        (!needType || String(i.system?.cyberwareType || "") === needType)
+      )
+      .map(i => ({ id: i.id, name: i.name, left: leftFor(i) }));
+  } else {
+    sheet.cw.parentImplants = [];
+  }
+
+  // Implant: free/taken options
+  if (this.item.system?.CyberWorkType?.Type === "Implant") {
+    const provided = Number(this.item.system?.CyberWorkType?.OptionsAvailable) || 0;
+    let used = 0;
+
+    if (this.actor) {
+      const all = this.actor.items?.contents || [];
+      const selfId = this.item.id;
+      used = all.reduce((sum, it) => {
+        const mod = it.system?.Module;
+        if (it.type === "cyberware" && mod?.IsModule && mod?.ParentId === selfId) {
+          return sum + (Number(mod.SlotsTaken) || 0);
+        }
+        return sum;
+      }, 0);
+    }
+
+    sheet.cw.implantSlotsUsed = used;
+    sheet.cw.implantSlotsTotal = provided;
+    sheet.cw.implantSlotsLeft = Math.max(0, provided - used);
+  }
 }
 
   async _cwSet(path, value) {
@@ -440,15 +503,90 @@ _prepareCyberware(sheet) {
       cyber.sheet.render(true);
     });
 
-    // Пересчитывать свободные слоты при смене "Slots provided"
+    // Recalculate available slots when changing “Slots provided”
     html.find('input[name="system.CyberWorkType.OptionsAvailable"]').on('change', (ev) => {
       this._onSubmit(ev);
+    });
+
+    html.on("change", "select[name='system.Module.ParentId']", async ev => {
+      await this._cwSet("system.Module.ParentId", String(ev.currentTarget.value || ""));
+    });
+
+    // MODULE: implant replacement
+    html.on("change", "select[name='system.Module.ParentId']", async ev => {
+      const prevId = this.item.system?.Module?.ParentId || "";
+      const newId  = String(ev.currentTarget.value || "");
+
+      await this._cwSet("system.Module.ParentId", newId);
+
+      const refresh = (id) => {
+        const it = this.actor?.items?.get(id);
+        if (it?.sheet?.rendered) it.sheet.render(true);
+      };
+      if (prevId && prevId !== newId) refresh(prevId);
+      if (newId) refresh(newId);
+    });
+
+    // MODULE: change “occupies options”
+    html.on("change", "input[name='system.Module.SlotsTaken']", async ev => {
+      const n = Number(ev.currentTarget.value);
+      await this._cwSet("system.Module.SlotsTaken", Number.isFinite(n) ? n : 0);
+
+      const parentId = this.item.system?.Module?.ParentId || "";
+      const parent = parentId ? this.actor?.items?.get(parentId) : null;
+      if (parent?.sheet?.rendered) parent.sheet.render(true);
+    });
+
+    // MODULE: turning off “Module” — freeing up options from the parent
+    html.on("change", "input[name='system.Module.IsModule']", async ev => {
+      const enabled = ev.currentTarget.checked;
+      const prevId = this.item.system?.Module?.ParentId || "";
+      await this._cwSet("system.Module.IsModule", enabled);
+      if (!enabled && prevId) {
+        await this._cwSet("system.Module.ParentId", "");
+        const parent = this.actor?.items?.get(prevId);
+        if (parent?.sheet?.rendered) parent.sheet.render(true);
+      }
     });
   }
 
   /** @override */
   async _updateObject(event, formData) {
     const data = foundry.utils.expandObject(formData);
+
+    if (this.item.type === "cyberware") {
+      const pickLastString = (v) => Array.isArray(v) ? String(v[v.length - 1] ?? "") : String(v ?? "");
+
+      const t = foundry.utils.getProperty(data, "system.cyberwareType");
+      if (t !== undefined) foundry.utils.setProperty(data, "system.cyberwareType", pickLastString(t));
+
+      const ap = foundry.utils.getProperty(data, "system.Module.AllowedParentCyberwareType");
+      if (ap !== undefined) foundry.utils.setProperty(data, "system.Module.AllowedParentCyberwareType", pickLastString(ap));
+
+      const slots = Number(foundry.utils.getProperty(data, "system.Module.SlotsTaken"));
+      if (!Number.isFinite(slots)) foundry.utils.setProperty(data, "system.Module.SlotsTaken", 0);
+    }
+    if (this.item.type === "cyberware") {
+      const pickLastString = (v) => {
+        if (Array.isArray(v)) return v.length ? String(v[v.length - 1] ?? "") : "";
+        return v == null ? "" : String(v);
+      };
+      const t = foundry.utils.getProperty(data, "system.cyberwareType");
+      if (t !== undefined) {
+        foundry.utils.setProperty(data, "system.cyberwareType", pickLastString(t));
+      }
+
+      const ap = foundry.utils.getProperty(data, "system.Module.AllowedParentCyberwareType");
+      if (ap !== undefined) {
+        foundry.utils.setProperty(data, "system.Module.AllowedParentCyberwareType", pickLastString(ap));
+      }
+
+      const slots = foundry.utils.getProperty(data, "system.Module.SlotsTaken");
+      if (slots !== undefined) {
+        const n = Number(slots);
+        foundry.utils.setProperty(data, "system.Module.SlotsTaken", Number.isFinite(n) ? n : 0);
+      }
+    }
 
     if (this.item.type === "skill") {
       const fixNum = v => {
