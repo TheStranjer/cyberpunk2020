@@ -214,6 +214,18 @@ export class CyberpunkActorSheet extends ActorSheet {
     // If not editable, do nothing further
     if (!this.options.editable) return;
 
+    // SDP: manual edit current — save and do not overwrite until the amount changes
+    html.on('change', 'input[name^="system.sdp.current."]', ev => {
+      const input = ev.currentTarget;
+      const path = input.getAttribute('name');
+      const zone = path.split('.').pop();
+      const value = Number(input.value || 0);
+
+      this.actor.update({
+        [`system.sdp.current.${zone}`]: value
+      });
+    });
+
     // Stat roll
     html.find('.stat-roll').click(ev => {
       let statName = ev.currentTarget.dataset.statName;
@@ -255,7 +267,7 @@ export class CyberpunkActorSheet extends ActorSheet {
 
     // Skill search: auto-filter + clear button
     const $skillSearch = html.find('input.skill-search[name="system.transient.skillFilter"]');
-    const $skillClear  = html.find('.skill-search-clear');
+    const $skillClear = html.find('.skill-search-clear');
 
     const toggleClear = () => $skillClear.toggleClass('is-visible', !!$skillSearch.val());
 
@@ -307,7 +319,7 @@ export class CyberpunkActorSheet extends ActorSheet {
 
     // Prompt for modifiers
     html.find(".skill-ask-mod")
-      .on("click",  ev => ev.stopPropagation())
+      .on("click", ev => ev.stopPropagation())
       .on("change", async ev => {
         ev.stopPropagation();
 

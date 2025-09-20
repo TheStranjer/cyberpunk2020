@@ -57,9 +57,15 @@
     <label>{{CPLocal "CWT_Implant_ModuleAllowedParentCWType"}}</label>
     <span class="flex-pad"></span>
     <select name="system.Module.AllowedParentCyberwareType">
-      <option value=""></option>
-      {{#each cw.parentCwTypeOptions as |t|}}
-        <option value="{{t}}" {{#if (equals ../system.Module.AllowedParentCyberwareType t)}}selected{{/if}}>{{t}}</option>
+      {{#each cw.parentCwTypeChoices as |ch|}}
+        <option value="{{ch.value}}"
+          {{#if (equals ../system.Module.AllowedParentCyberwareType ch.value)}}selected{{/if}}>
+          {{#if (equals ch.localKey ch.value)}}
+            {{ch.value}}
+          {{else}}
+            {{CPLocal ch.localKey}}
+          {{/if}}
+        </option>
       {{/each}}
     </select>
   </div>
@@ -286,11 +292,41 @@
       <label>{{CPLocal "CWT_Implant_ImplantType"}}</label>
       <span class="flex-pad"></span>
       <select name="system.cyberwareType">
-        {{#each cw.parentCwTypeOptions as |t|}}
-          <option value="{{t}}" {{#if (equals ../system.cyberwareType t)}}selected{{/if}}>{{t}}</option>
+        {{#each cw.parentCwTypeChoices as |ch|}}
+          <option value="{{ch.value}}"
+            {{#if (equals ../system.cyberwareType ch.value)}}selected{{/if}}>
+            {{#if (equals ch.localKey ch.value)}}
+              {{ch.value}}
+            {{else}}
+              {{CPLocal ch.localKey}}
+            {{/if}}
+          </option>
         {{/each}}
       </select>
     </div>
+    {{#if (equals system.cyberwareType "CyberArm")}}
+      <div class="field">
+        <label>{{CPLocal "CyberBodyTypeLocation"}}</label>
+        <span class="flex-pad"></span>
+        <select name="system.CyberBodyType.Location">
+          <option value=""></option>
+          <option value="Left"  {{#if (equals system.CyberBodyType.Location "Left")}}selected{{/if}}>{{CPLocal "Left"}}</option>
+          <option value="Right" {{#if (equals system.CyberBodyType.Location "Right")}}selected{{/if}}>{{CPLocal "Right"}}</option>
+        </select>
+      </div>
+    {{else}}
+      {{#if (equals system.cyberwareType "CyberLeg")}}
+        <div class="field">
+          <label>{{CPLocal "CyberBodyTypeLocation"}}</label>
+          <span class="flex-pad"></span>
+          <select name="system.CyberBodyType.Location">
+            <option value=""></option>
+            <option value="Left"  {{#if (equals system.CyberBodyType.Location "Left")}}selected{{/if}}>{{CPLocal "Left"}}</option>
+            <option value="Right" {{#if (equals system.CyberBodyType.Location "Right")}}selected{{/if}}>{{CPLocal "Right"}}</option>
+          </select>
+        </div>
+      {{/if}}
+    {{/if}}
   {{/if}}
 
   {{!-- ===== Chip ===== --}}

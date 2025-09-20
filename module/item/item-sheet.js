@@ -213,15 +213,38 @@ _prepareCyberware(sheet) {
     sheet.attackSkills = (this.actor.itemTypes.skill || []).map(s => s.name).sort((a, b) => a.localeCompare(b));
   }
 
-  // Allowed parent cyberware type + список для редактируемого cyberwareType
-  const defaults = ["CYBEROPTIC", "CYBEREAR", "CYBERARM", "CYBERHAND", "CYBERLEG", "CYBERFOOT", "IMPLANT"];
+  const TYPE_CHOICES_BASE = [
+    { value: "CyberArm", localKey: "CWT_ImplantType_CyberArm" },
+    { value: "CyberLeg", localKey: "CWT_ImplantType_CyberLeg" },
+    { value: "CyberAudio", localKey: "CWT_ImplantType_CyberAudio" },
+    { value: "CyberOptic", localKey: "CWT_ImplantType_CyberOptic" },
+    { value: "CyberTorso", localKey: "CWT_ImplantType_CyberTorso" }
+  ];
+
+  const typeAliases = {
+    "CYBERARM": "CyberArm",
+    "CYBERHAND": "CyberArm",
+    "CYBERLEG": "CyberLeg",
+    "CYBERFOOT": "CyberLeg",
+    "CYBEREAR": "CyberAudio",
+    "CYBEROPTIC":"CyberOptic",
+    "IMPLANT": "CyberTorso",
+    "Arm": "CyberArm", "Leg": "CyberLeg",
+    "Ear": "CyberAudio", "Eye": "CyberOptic", "Torso": "CyberTorso"
+  };
 
   const pickType = (t) => {
-    if (typeof t === "string") return t.trim();
-    if (t && typeof t === "object") {
-      if (typeof t.key === "string") return t.key.trim();
-      if (typeof t.value === "string") return t.value.trim();
-      if (typeof t.name === "string") return t.name.trim();
+    if (!t) return null;
+    if (typeof t === "string") {
+      const k = t.trim();
+      return typeAliases[k] || k;
+    }
+    if (typeof t === "object") {
+      const k = (t.key ?? t.value ?? t.name);
+      if (typeof k === "string") {
+        const s = k.trim();
+        return typeAliases[s] || s;
+      }
     }
     return null;
   };
@@ -237,15 +260,12 @@ _prepareCyberware(sheet) {
         .filter(Boolean)
     : [];
 
-  const availableTypes = Array.from(new Set([...defaults, ...worldTypes, ...actorTypes]))
-    .filter(t => typeof t === "string" && t.length)
-    .sort((a, b) => a.localeCompare(b));
+  const known = new Set(TYPE_CHOICES_BASE.map(c => c.value));
+  const extra = Array.from(new Set([...worldTypes, ...actorTypes]))
+    .filter(v => typeof v === "string" && v.length && !known.has(v))
+    .map(v => ({ value: v, localKey: v }));
 
-  const curType = this.item.system?.cyberwareType;
-  if (curType && !availableTypes.includes(curType)) availableTypes.unshift(curType);
-
-  sheet.cw.cyberwareTypeOptions = availableTypes;
-  sheet.cw.parentCwTypeOptions = Array.from(availableTypes);
+  sheet.cw.parentCwTypeChoices = [...TYPE_CHOICES_BASE, ...extra];
 
   // Implant: free/taken options with automatic module accounting
   const provided = Number(this.item.system?.CyberWorkType?.OptionsAvailable) || 0;
@@ -515,7 +535,7 @@ _prepareCyberware(sheet) {
     // MODULE: implant replacement
     html.on("change", "select[name='system.Module.ParentId']", async ev => {
       const prevId = this.item.system?.Module?.ParentId || "";
-      const newId  = String(ev.currentTarget.value || "");
+      const newId = String(ev.currentTarget.value || "");
 
       await this._cwSet("system.Module.ParentId", newId);
 
@@ -546,6 +566,20 @@ _prepareCyberware(sheet) {
         await this._cwSet("system.Module.ParentId", "");
         const parent = this.actor?.items?.get(prevId);
         if (parent?.sheet?.rendered) parent.sheet.render(true);
+      }
+    });
+
+    html.on("change", "select[name='system.cyberwareType']", async ev => {
+      const v = ev.currentTarget.value;
+      let bodyType = "";
+      if (v === "CyberArm") bodyType = "Arm";
+      else if (v === "CyberLeg") bodyType = "Leg";
+      else if (v === "CyberTorso") bodyType = "Torso";
+      else if (v === "CyberAudio" || v === "CyberOptic") bodyType = "Head";
+
+      await this._cwSet("system.CyberBodyType.Type", bodyType);
+      if (bodyType !== "Arm" && bodyType !== "Leg") {
+        await this._cwSet("system.CyberBodyType.Location", "");
       }
     });
   }

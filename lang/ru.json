@@ -495,5 +495,13 @@
     "CYBERPUNK.CWT_Module_ParentImplant": "Имплант установки",
     "CYBERPUNK.CWT_Implant_ImplantType": "Тип импланта",
     "CYBERPUNK.CWT_AvailSlotsShort": "ДО",
-    "CYBERPUNK.CWT_AvailSlotsFull": "Доступно опций"
+    "CYBERPUNK.CWT_AvailSlotsFull": "Доступно опций",
+    "CYBERPUNK.CWT_ImplantType_CyberArm": "Кибер-Рука",
+    "CYBERPUNK.CWT_ImplantType_CyberLeg": "Кибер-Нога",
+    "CYBERPUNK.CWT_ImplantType_CyberAudio": "Кибер-Аудио",
+    "CYBERPUNK.CWT_ImplantType_CyberOptic": "Кибер-Оптика",
+    "CYBERPUNK.CWT_ImplantType_CyberTorso": "Кибер-Торс",
+    "CYBERPUNK.SDPCurrent": "Текущий SDP",
+    "CYBERPUNK.SDPSumTooltip": "Сумма SDP имплантов и модулей в зоне",
+    "CYBERPUNK.SDPCurrentTooltip": "Редактируемое поле для отслеживания урона по SDP"
 }

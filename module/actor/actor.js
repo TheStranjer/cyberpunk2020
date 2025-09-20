@@ -84,6 +84,51 @@ export class CyberpunkActor extends Actor {
       return item.system.equipped;
     });
 
+    // SDP per zone (implants + modules)
+    system.sdp = system.sdp || {};
+    system.sdp.sum = { Head:0, Torso:0, lArm:0, rArm:0, lLeg:0, rLeg:0 };
+    system.sdp.current = system.sdp.current || { Head:0, Torso:0, lArm:0, rArm:0, lLeg:0, rLeg:0 };
+
+    const ZONES = ["Head","Torso","lArm","rArm","lLeg","rLeg"];
+    const addSdp = (zoneKey, amount) => {
+      const n = Number(amount) || 0;
+      if (!n) return;
+      if (!ZONES.includes(zoneKey)) return;
+      system.sdp.sum[zoneKey] += n;
+    };
+
+    const allItems = this.items.contents || [];
+    const byId = new Map(allItems.map(i => [i.id, i]));
+    const eqCyber = (equippedItems || []).filter(i => i.type === "cyberware");
+
+    for (const it of eqCyber) {
+      const sdp = Number(it.system?.CyberWorkType?.SDP) || 0;
+      if (sdp <= 0) continue;
+
+      const mz = it.system?.MountZone || "";
+      if (mz === "Head") addSdp("Head", sdp);
+      else if (mz === "Torso") addSdp("Torso", sdp);
+      else if (mz === "Arm" || mz === "Leg") {
+        // Define the side: for the implant — from it; for the module — from the parent
+        let side = it.system?.CyberBodyType?.Location || "";
+        if ((!side || side === "") && it.system?.Module?.IsModule) {
+          const pid = it.system?.Module?.ParentId;
+          const parent = pid ? byId.get(pid) : null;
+          side = parent?.system?.CyberBodyType?.Location || "";
+        }
+        if (side === "Left")  addSdp(mz === "Arm" ? "lArm" : "lLeg", sdp);
+        if (side === "Right") addSdp(mz === "Arm" ? "rArm" : "rLeg", sdp);
+      }
+      // MountZone “Nervous” is not taken into account in armored zones
+    }
+
+    // By default, “current” = “sum” if current is not yet specified
+    for (const z of ZONES) {
+      if (system.sdp.current[z] == null) {
+        system.sdp.current[z] = system.sdp.sum[z];
+      }
+    }
+
     // Cyberware (Characteristic): apply stat bonuses
     Object.values(stats).forEach(s => { s.cyberMod = 0; });
 
@@ -209,6 +254,44 @@ export class CyberpunkActor extends Actor {
     else if(woundState == 2) {
       woundStat(stats.ref, total => total - 2);
     }
+
+    // SDP: current follows sum only when sum itself has changed
+    {
+      const ZONES = ["Head","Torso","lArm","rArm","lLeg","rLeg"];
+      system.sdp = system.sdp || {};
+      system.sdp.sum = system.sdp.sum || { Head:0, Torso:0, lArm:0, rArm:0, lLeg:0, rLeg:0 };
+      system.sdp.current = system.sdp.current || { Head:0, Torso:0, lArm:0, rArm:0, lLeg:0, rLeg:0 };
+      system.sdp._lastSum = system.sdp._lastSum || {};
+
+      for (const z of ZONES) {
+        const sumNow = Number(system.sdp.sum?.[z] || 0);
+        const lastSum = system.sdp._lastSum[z];
+
+        if (lastSum === undefined) {
+          // First calculation pass for zone z
+          // Rules:
+          // If current is empty OR equal to 0 (default start sheet), set current = sumNow
+          // If the player has already entered a non-zero value (e.g., 18), do not overwrite it
+          const curRaw = system.sdp.current?.[z];
+          const curNum = Number(curRaw);
+
+          if (curRaw == null || Number.isNaN(curNum) || curNum === 0) {
+            system.sdp.current[z] = sumNow;
+          }
+          system.sdp._lastSum[z] = sumNow;
+        }
+        else if (lastSum !== sumNow) {
+          // Amount changed (implant/module installed/removed) — resynchronize current
+          system.sdp.current[z] = sumNow;
+          system.sdp._lastSum[z] = sumNow;
+        }
+        else {
+          // The amount has not changed — leave current alone (keep the player's manual entry)
+          if (system.sdp.current[z] == null) system.sdp.current[z] = sumNow;
+        }
+      }
+    }
+
     // calculate humanity & EMP (include cyberware and temp mods before loss)
     const emp = stats.emp;
 
@@ -349,7 +432,7 @@ export class CyberpunkActor extends Actor {
     const cMod = this._getCharacteristicSkillMod(skill.name);
     if (cMod) parts.push(cMod);
 
-    const makeRoll = () => makeD10Roll(parts, this.system);   // d10 + parts
+    const makeRoll = () => makeD10Roll(parts, this.system); // d10 + parts
 
     // if both are accidentally marked — ignore
     if (advantage && disadvantage) { advantage = disadvantage = false; }
@@ -364,8 +447,8 @@ export class CyberpunkActor extends Actor {
         r2.evaluate()
       ]).then(() => {
         const chosen = advantage
-          ? (r1.total >= r2.total ? r1 : r2)   // best
-          : (r1.total <= r2.total ? r1 : r2);  // worst
+          ? (r1.total >= r2.total ? r1 : r2) // best
+          : (r1.total <= r2.total ? r1 : r2); // worst
 
         new Multiroll(skill.name)
           .addRoll(chosen)

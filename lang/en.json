@@ -494,5 +494,13 @@
     "CYBERPUNK.CWT_Module_ParentImplant": "Installed into Implant",
     "CYBERPUNK.CWT_Implant_ImplantType": "Implant Type",
     "CYBERPUNK.CWT_AvailSlotsShort": "AO",
-    "CYBERPUNK.CWT_AvailSlotsFull": "Available options"
+    "CYBERPUNK.CWT_AvailSlotsFull": "Available options",
+    "CYBERPUNK.CWT_ImplantType_CyberArm": "Cyberarm",
+    "CYBERPUNK.CWT_ImplantType_CyberLeg": "Cyberleg",
+    "CYBERPUNK.CWT_ImplantType_CyberAudio": "Cyberaudio",
+    "CYBERPUNK.CWT_ImplantType_CyberOptic": "Cyberoptics",
+    "CYBERPUNK.CWT_ImplantType_CyberTorso": "Cybertorso",
+    "CYBERPUNK.SDPCurrent": "Current SDP",
+    "CYBERPUNK.SDPSumTooltip": "Total SDP from implants and modules in this hit location",
+    "CYBERPUNK.SDPCurrentTooltip": "Editable field for tracking SDP damage"
 }

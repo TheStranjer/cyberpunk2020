@@ -733,6 +733,11 @@
 							10
 						]
 					}
+				},
+				"sdp": {
+					"sum":     { "Head":0, "Torso":0, "lArm":0, "rArm":0, "lLeg":0, "rLeg":0 },
+					"current": { "Head":0, "Torso":0, "lArm":0, "rArm":0, "lLeg":0, "rLeg":0 },
+					"touched": { "Head":false, "Torso":false, "lArm":false, "rArm":false, "lLeg":false, "rLeg":false }
 				}
 			},
 			"gear": {
