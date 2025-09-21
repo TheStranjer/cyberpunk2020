@@ -875,10 +875,7 @@ div.statderive .value.rightborder {
   grid-template-rows: 1fr 1fr 1fr 1fr;
   grid-template-areas: "nervous" "body" "r-arm" "r-leg";
   row-gap: 6px;
-  min-width: 200px;
-  max-height: 647px;
-  /*min-height: 500px;
-  max-height: 500px;*/
+  min-width: 232px;
 }
 
 .cyberpunk .active-cyberware-left {
@@ -889,19 +886,16 @@ div.statderive .value.rightborder {
   grid-template-rows: 1fr 1fr 1fr;
   grid-template-areas: "head" "l-arm" "l-leg";
   row-gap: 6px;
-  min-width: 200px;
-  max-height: 647px;
-  /*max-height: 500px;*/
+  min-width: 232px;
 }
 
 .active-cyberware .active-cyberware-segment {
   margin-top: 0px;
   padding: 34px 6px 6px 6px;
-  overflow-y: auto;
+  /*overflow-y: auto;*/
   scrollbar-color: black transparent;
   position: relative;
   border: 3px solid black;
-  overflow-y: auto;
 }
 
 .active-cyberware .active-cyberware-segment button{
@@ -916,14 +910,16 @@ div.statderive .value.rightborder {
 }
 
 
-.anatomy-image img {
-  display: block;            
-  width: 100%;                  
+.anatomy-container {
+  background-size:auto;
+  min-width: 270px;
+}
+
+#anatomy-img {
+  display: block;
+  
+  width: 100%;
   height: 100%;
-  min-width: 243px;
-  min-height: 647px;
-  max-width: min-content;
-  max-height: 647px;
 }
 
 .field-list.cyberware-field-list.active-cyberware-segment .field.gear.item-edit.full-width {
@@ -960,7 +956,7 @@ div.statderive .value.rightborder {
 
 }
 
-.field-image img{
+.field-image img {
   display: block;            
   width: auto;                  
   height: auto;
