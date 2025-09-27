@@ -826,20 +826,9 @@ div.statderive .value.rightborder {
   display: grid;
   position: relative;
   grid-template-columns: repeat(auto-fit, minmax(60px, 1fr));
-  /*grid-template-columns: repeat(10, 1fr);*/
   gap: 6px;
   justify-items: center;
 }
-
-/*.chipware-container {
-  display: flex;
-  flex-direction: row;
-  flex-wrap: wrap;
-  position: relative;
-  gap: 6px;
-  justify-content: center;
-
-}*/
 
 .chipware.field.gear.full-width {
   display: flex;
@@ -861,20 +850,6 @@ div.statderive .value.rightborder {
   background-position: center;
 }
 
-/*.chipware-container .chipware .chip-name {
-  display:block;
-  font-size: 0.7rem;
-  min-width: 0;
-  white-space: normal;
-  overflow-wrap: break-word;
-  justify-content: center;
-  text-align: center;
-  align-items: center;
-  color: black;
-  padding: 5px;
-  background-color: transparent;
-}*/
-
 .chipware-container .chipware .chip-name { 
   display: block; 
   font-size: 0.7rem; 
@@ -882,7 +857,6 @@ div.statderive .value.rightborder {
   max-width: 58px; 
   white-space: nowrap; 
   text-overflow: ellipsis; 
-  /*overflow-wrap: break-word;*/ 
   justify-content: center; 
   text-align: center; 
   align-items: center; 
@@ -906,24 +880,6 @@ div.statderive .value.rightborder {
   background-color: transparent; 
 }
 
-/*.chipware-container .chipware:hover::after {
-  content: attr(data-full);
-  position: fixed;
-  top: 100%;
-  left: 50%;
-  /*transform: translate(-50%, -140%);*/
-  /*transform: translateX(-50%);
-  background: #333;
-  color: #fff;
-  font-size: 0.7rem;
-  padding: 4px 6px;
-  border-radius: 4px;
-  white-space: normal;
-  max-width: 200px;
-  z-index: 10;
-  pointer-events: none;
-}*/
-
 .chip-tooltip {
   position: fixed;
   background: #333;
@@ -940,10 +896,8 @@ div.statderive .value.rightborder {
 
 .active-cyberware {
   display: grid;
-  /*grid-template-columns: repeat(3, 1fr);*/
   grid-template-columns: 1fr 270px 1fr;
   flex: 0 0 auto;
-  /*min-width: 483px;*/
 }
 
 .cyberpunk .active-cyberware-right {
@@ -951,7 +905,6 @@ div.statderive .value.rightborder {
   padding-right: 6px;
   margin-top: 0px;
   display: grid;
-  /*grid-template-rows: 1fr 1fr 1fr 1fr;*/
   grid-template-rows: auto auto auto auto;
   grid-template-areas: "nervous" "body" "r-arm" "r-leg";
   row-gap: 6px;
@@ -967,7 +920,6 @@ div.statderive .value.rightborder {
   padding-right: 6px;
   margin-top: 0px;
   display: grid;
-  /*grid-template-rows: 1fr 1fr 1fr;*/
   grid-template-rows: auto auto auto;
   grid-template-areas: "head" "l-arm" "l-leg";
   row-gap: 6px;
@@ -1062,18 +1014,6 @@ div.statderive .value.rightborder {
   height: auto;
   max-width: 100%;
   max-height: 100%;
-}
-
-.cyber-name { 
-
-}
-
-.cyber-hm-loss {
-
-}
-
-.field.gear.item-edit.full-width .inactive {
-
 }
 
 .field.gear.item-edit.full-width .item-delete {
