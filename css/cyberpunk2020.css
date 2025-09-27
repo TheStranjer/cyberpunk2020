@@ -148,7 +148,7 @@
 .field-list {
   width: 100%;
   display: grid;
-  grid-template-columns: minmax(0,1fr) minmax(0,1fr);
+  grid-template-columns: 1fr 1fr;;
   gap: 3px;
   grid-auto-rows: auto;
   flex-grow: 0;
