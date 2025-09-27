@@ -17,8 +17,10 @@
         {{#each gear.cyberware as |chip|}}
         {{#with chip.system}}
         {{#if (equals cyberwareType "CHIPWARE")}}
-        <div class="chipware field gear full-width" style="background-image: url('systems/cyberpunk2020/img/chip.png')" data-item-id="{{chip.id}}">
-            <span class="chip-name">{{chip.name}}</span>
+        <div class="chipware field gear full-width" data-full="{{chip.name}}" style="background-image: url('systems/cyberpunk2020/img/chip.png')" data-item-id="{{chip.id}}">
+            <span class="chip-name">
+                <span class="chip-name-text">{{chip.name}}</span>
+            </span>
             <div class="chipware-slot item-delete" data-item-id="{{chip.id}}">X</div>
         </div>
         {{/if}}
@@ -34,8 +36,8 @@
 <div class="active-cyberware" style="background-image: url('systems/cyberpunk2020/img/grid-beige-big-tile.png')">
     <div class="active-cyberware-right" >
         {{#each cyberwareSegmentsRight}}
-        <section class="field-list cyberware-field-list active-cyberware-segment" style="grid-area: {{this.area}}">
-            <button type="button" class="collapsible">{{this.area}}</button>
+        <section class="field-list cyberware-field-list active-cyberware-segment">
+            <button type="button">{{this.area}}</button>
             {{#each ../gear.cyberware as |cyber|}}
             <div class="field gear item-edit full-width" data-item-id="{{cyber.id}}">
             <label>{{cyber.name}}</label>
@@ -55,7 +57,7 @@
     <div class="active-cyberware-left">
         {{#each cyberwareSegmentsLeft}}
         <section class="field-list cyberware-field-list active-cyberware-segment">
-            <button type="button" class="collapsible">{{this.area}}</button>
+            <button type="button">{{this.area}}</button>
             {{#each ../gear.cyberware as |cyber|}}
             <div class="field gear item-edit full-width" data-item-id="{{cyber.id}}">
             <label>{{cyber.name}}</label>
@@ -84,9 +86,9 @@
         <div class="field-image" data-item-id="{{cyber.id}}">
             <img src={{cyber.img}}>
         </div>
-        <label>{{cyber.name}}</label>
+        <label class="cyber-name">{{cyber.name}}</label>
         {{#with cyber.system}}
-            <span>{{CPLocal "HumanityLossAbbrev"}}: {{humanityLoss}}</span>
+            <span class="cyber-hm-loss">{{CPLocal "HumanityLossAbbrev"}}: {{humanityLoss}}</span>
             {{#if cyberwareType}}
             <span>
             <p class="inactive">{{cyberwareType}}

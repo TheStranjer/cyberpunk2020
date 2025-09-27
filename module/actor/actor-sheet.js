@@ -600,6 +600,41 @@ sheetData.cyberwareSegmentsLeft = [
 
       fp.render(true);
     });
+
+    const tooltip = document.createElement("div");
+    tooltip.className = "chip-tooltip";
+    document.body.appendChild(tooltip);
+
+    function hideTooltip() {
+      tooltip.style.display = "none";
+    }
+
+    function showTooltip(chip) {
+      const fullName = chip.dataset.full;
+      if (!fullName) return;
+
+      tooltip.textContent = fullName;
+      tooltip.style.display = "block";
+
+      const rect = chip.getBoundingClientRect();
+      const tooltipRect = tooltip.getBoundingClientRect();
+
+      tooltip.style.top = `${rect.top - tooltipRect.height - 6}px`;
+      tooltip.style.left = `${rect.left + rect.width / 2}px`;
+      tooltip.style.transform = "translateX(-50%)";
+    }
+
+    function attachChipwareTooltips(root) {
+      root.querySelectorAll(".chipware").forEach(chip => {
+        chip.addEventListener("mouseenter", () => showTooltip(chip));
+        chip.addEventListener("mouseleave", hideTooltip);
+      });
+    }
+
+    attachChipwareTooltips(html[0] ?? document);
+    ["drop", "dragend", "click", "mousedown", "mouseup"].forEach(eventName => {
+      document.addEventListener(eventName, hideTooltip);
+    });
   }
 
   /**
