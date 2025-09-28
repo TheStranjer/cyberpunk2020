@@ -62,22 +62,6 @@ export class CyberpunkActorSheet extends ActorSheet {
       sheetData.StunDeathMod = StunDeathMod;
     }
 
-
-    /*    // Collect all Chips that belong to this actor.
-    const allChips = this.actor.items.filter(i => i.type === "CHIPWARE");
-    console.log(this.actor.items.filter(i => i.type === "CHIPWARE"));
-    allChips.sort((a, b) => a.name.localeCompare(b.name));
-    sheetData.cyberware = allChips;
-    
-    /**
-     * Collect the list of active chips based on the ID array
-     *   actor.system.activeChips: string[]
-     */
-    /*const activeChipIds = this.actor.system.activeChips || [];
-    // Filter out the ones the actor actually has.
-    const activeChips = allChips.filter(p => activeProgIds.includes(p.id));*/
-    /*// Put them in sheetData so netrun-tab.hbs can output them
-    sheetData.netrunActivePrograms = activeChips;*/
 /*definitions for active cyberware segments - cyberware anatomy display*/
     sheetData.cyberwareSegmentsRight = [
   { area: "nervous" },
