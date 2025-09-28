@@ -1,6 +1,6 @@
 import { weaponTypes, meleeAttackTypes, rangedAttackTypes, attackSkills, concealability, availability, reliability, getStatNames } from "../lookups.js";
 import { formulaHasDice } from "../dice.js";
-import { localize } from "../utils.js";
+import { localize, cwHasType } from "../utils.js";
 import { getMartialKeyByName } from '../translations.js'
 
 /**
@@ -103,8 +103,26 @@ _prepareCyberware(sheet) {
     return k;
   };
 
-  const cwt = this.item.system?.CyberWorkType ?? { Type: "Descriptive" };
+  const sys = this.item?.system ?? {};
+  const cwt = sys.CyberWorkType ?? {};
   sheet.cw = sheet.cw ?? {};
+
+  sheet.cw.types = Array.isArray(cwt.Types) && cwt.Types.length
+    ? [...cwt.Types]
+    : (cwt.Type ? [cwt.Type] : ["Descriptive"]);
+
+  const mapKeyToLoc = (k) => {
+    switch (k) {
+      case "Descriptive": return game.i18n.localize("CYBERPUNK.CWT_Type_Descriptive");
+      case "Characteristic": return game.i18n.localize("CYBERPUNK.CWT_Type_Characteristic");
+      case "Armor": return game.i18n.localize("CYBERPUNK.CWT_Type_Armor");
+      case "Weapon": return game.i18n.localize("CYBERPUNK.CWT_Type_Weapon");
+      case "Implant": return game.i18n.localize("CYBERPUNK.CWT_Type_Implant");
+      case "Chip": return game.i18n.localize("CYBERPUNK.CWT_Type_Chip");
+      default: return k;
+    }
+  };
+  sheet.cw.typeLabels = sheet.cw.types.map(mapKeyToLoc);
 
   // Ensure Module exists for bindings
   if (!this.item.system.Module) {
@@ -295,19 +313,19 @@ _prepareCyberware(sheet) {
       return Math.max(0, provided - used);
     };
 
-    sheet.cw.parentImplants = all
-      .filter(i =>
-        i.type === "cyberware" &&
-        (i.system?.CyberWorkType?.Type === "Implant") &&
-        (!needType || String(i.system?.cyberwareType || "") === needType)
-      )
-      .map(i => ({ id: i.id, name: i.name, left: leftFor(i) }));
+  sheet.cw.parentImplants = all
+    .filter(i =>
+      i.type === "cyberware" &&
+      cwHasType(i, "Implant") &&
+      (!needType || String(i.system?.cyberwareType || "") === needType)
+    )
+    .map(i => ({ id: i.id, name: i.name, left: leftFor(i) }));
   } else {
     sheet.cw.parentImplants = [];
   }
 
   // Implant: free/taken options
-  if (this.item.system?.CyberWorkType?.Type === "Implant") {
+  if (cwHasType(this.item, "Implant")) {
     const provided = Number(this.item.system?.CyberWorkType?.OptionsAvailable) || 0;
     let used = 0;
 
@@ -677,6 +695,51 @@ _prepareCyberware(sheet) {
         this.render(true);
       });
     }
+
+    // Open/close menu
+    html.on("click", ".cw-ms-trigger", ev => {
+      ev.preventDefault();
+      const root = ev.currentTarget.closest(".cw-ms");
+      if (!root) return;
+      root.classList.toggle("open");
+    });
+
+    // Close on click outside the block
+    html.on("click", ev => {
+      if ($(ev.target).closest(".cw-ms").length) return;
+      html.find(".cw-ms.open").removeClass("open");
+    });
+
+    // Selecting checkboxes within the menu
+    html.on("change", ".cw-ms-menu input[type=checkbox]", async ev => {
+      const root = ev.currentTarget.closest(".cw-ms");
+      if (!root) return;
+
+      const menu = root.querySelector(".cw-ms-menu");
+      let next = Array.from(menu.querySelectorAll("input[type=checkbox]:checked")).map(i => i.value);
+
+      const changed = ev.currentTarget.value;
+      const turnedOn = ev.currentTarget.checked;
+
+      if (changed === "Descriptive" && turnedOn) {
+        next = ["Descriptive"];
+        menu.querySelectorAll("input[type=checkbox]").forEach(i => {
+          i.checked = (i.value === "Descriptive");
+        });
+      } else if (turnedOn) {
+        const desc = menu.querySelector('input[value="Descriptive"]');
+        if (desc) desc.checked = false;
+        next = next.filter(v => v !== "Descriptive");
+      }
+
+      if (!next.length) {
+        next = ["Descriptive"];
+        const desc = menu.querySelector('input[value="Descriptive"]');
+        if (desc) desc.checked = true;
+      }
+
+      await this._cwSet("system.CyberWorkType.Types", next);
+    });
   }
 
   /** @override */
@@ -762,7 +825,7 @@ _prepareCyberware(sheet) {
     const updates = [];
     for (const s of skillItems) {
       const want = Number(agg[s.name] || 0);
-      const cur  = Number(s.system?.chipLevel || 0);
+      const cur = Number(s.system?.chipLevel || 0);
       if (want !== cur) {
         updates.push({ _id: s.id, "system.chipLevel": want });
       }
@@ -794,7 +857,7 @@ _prepareCyberware(sheet) {
     const updates = [];
     for (const s of skills) {
       const want = !!activeMap[s.name];
-      const cur  = !!(s.system?.isChipped);
+      const cur = !!(s.system?.isChipped);
       if (want !== cur) updates.push({ _id: s.id, "system.isChipped": want });
     }
     if (updates.length) await actor.updateEmbeddedDocuments("Item", updates, { render: false });

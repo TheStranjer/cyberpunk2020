@@ -1,7 +1,7 @@
 import { makeD10Roll, Multiroll } from "../dice.js";
 import { SortOrders, sortSkills } from "./skill-sort.js";
 import { btmFromBT } from "../lookups.js";
-import { properCase, localize, getDefaultSkills } from "../utils.js"
+import { properCase, localize, getDefaultSkills, cwHasType } from "../utils.js"
 
 /**
  * Extend the base Actor document by defining a custom roll data structure which is ideal for the Simple system.
@@ -172,7 +172,7 @@ export class CyberpunkActor extends Actor {
 
     // Equipped cyber-armor implants (once)
     const cwArmorItems = (equippedItems || [])
-      .filter(i => i.type === "cyberware" && i.system?.CyberWorkType?.Type === "Armor");
+      .filter(i => i.type === "cyberware" && cwHasType(i, "Armor"));
 
     // Inventory armor: accumulate EV and layer SP
     equippedItems.filter(i => i.type === "armor").forEach(armor => {
@@ -320,8 +320,7 @@ export class CyberpunkActor extends Actor {
 
     // CHIPS: only active ones, auto-switching skills to chip level
     const activeChipware = (eqCyber || []).filter(i =>
-      i.system?.CyberWorkType?.Type === "Chip" &&
-      !!i.system?.CyberWorkType?.ChipActive
+      cwHasType(i, "Chip") && !!i.system?.CyberWorkType?.ChipActive
     );
 
     // { “Skill Name”: maximum level among active chips }
@@ -507,7 +506,7 @@ export class CyberpunkActor extends Actor {
       if (!sys?.equipped) continue;
 
       const cwt = sys.CyberWorkType;
-      if (!cwt || cwt.Type !== "Characteristic") continue;
+      if (!cwt || !cwHasType(cwt, "Characteristic")) continue;
 
       const table = cwt.Skill || {};
       const v = Number(table[skillName]) || 0;
@@ -528,7 +527,7 @@ export class CyberpunkActor extends Actor {
       if (it.type !== "cyberware") continue;
       const sys = it.system || {};
       if (!sys.equipped) continue;
-      if (sys?.CyberWorkType?.Type !== "Characteristic") continue;
+      if (!cwHasType(sys, "Characteristic")) continue;
 
       const checks = sys.CyberWorkType?.Checks || {};
       mods.initiative += Number(checks.Initiative || 0) || 0;

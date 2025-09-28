@@ -1,6 +1,6 @@
 import { weaponTypes, rangedAttackTypes, meleeAttackTypes, fireModes, rangedModifiers, ranges, rangeDCs, rangeResolve, strengthDamageBonus, getMartialActionBonus, martialActions } from "../lookups.js"
 import { Multiroll, makeD10Roll } from "../dice.js"
-import { clamp, deepLookup, localize, localizeParam, rollLocation } from "../utils.js"
+import { clamp, deepLookup, localize, localizeParam, rollLocation, cwHasType } from "../utils.js"
 import { CyberpunkActor } from "../actor/actor.js";
 
 /**
@@ -108,7 +108,7 @@ export class CyberpunkItem extends Item {
         this.__weaponRoll();
         break;
       case "cyberware":
-        if (this.system?.CyberWorkType?.Type === "Weapon") this.__weaponRoll();
+        if (cwHasType(this, "Weapon")) this.__weaponRoll();
         break;
       default:
         break;

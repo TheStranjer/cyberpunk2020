@@ -915,6 +915,7 @@
 
 				"ChipSkills": {},
 				"ChipActive": false,
+				"Types": [],
 
 				"Weapon": {
 					"weaponType": "Pistol",

@@ -78,21 +78,59 @@
     <span class="flex-pad"></span>
   </div>
 
-  <div class="field">
-    <label for="system.CyberWorkType.Type">{{CPLocal "CyberWorkTypeType"}}</label>
-    <span class="flex-pad"></span>
-    <select name="system.CyberWorkType.Type">
-      <option value="Descriptive" {{#if (equals system.CyberWorkType.Type "Descriptive")}}selected{{/if}}>{{CPLocal "CWT_Type_Descriptive"}}</option>
-      <option value="Characteristic" {{#if (equals system.CyberWorkType.Type "Characteristic")}}selected{{/if}}>{{CPLocal "CWT_Type_Characteristic"}}</option>
-      <option value="Armor" {{#if (equals system.CyberWorkType.Type "Armor")}}selected{{/if}}>{{CPLocal "CWT_Type_Armor"}}</option>
-      <option value="Weapon" {{#if (equals system.CyberWorkType.Type "Weapon")}}selected{{/if}}>{{CPLocal "CWT_Type_Weapon"}}</option>
-      <option value="Implant" {{#if (equals system.CyberWorkType.Type "Implant")}}selected{{/if}}>{{CPLocal "CWT_Type_Implant"}}</option>
-      <option value="Chip" {{#if (equals system.CyberWorkType.Type "Chip")}}selected{{/if}}>{{CPLocal "CWT_Type_Chip"}}</option>
-    </select>
+<div class="field">
+  <label>{{CPLocal "CyberWorkTypeType"}}</label>
+  <span class="flex-pad"></span>
+
+  <div class="cw-ms" data-path="system.CyberWorkType.Types">
+    <button type="button" class="cw-ms-trigger">
+      <span class="cw-ms-labels">
+        {{#if cw.typeLabels.length}}
+          {{#each cw.typeLabels}}{{this}}{{#unless @last}}, {{/unless}}{{/each}}
+        {{else}}
+          {{CPLocal "CWT_Type_Descriptive"}}
+        {{/if}}
+      </span>
+      <i class="fa-solid fa-caret-down cw-ms-caret"></i>
+    </button>
+
+    <div class="cw-ms-menu">
+      <label class="cw-ms-opt">
+        <input type="checkbox" value="Descriptive"
+               {{#if (cwHasType system.CyberWorkType "Descriptive")}}checked{{/if}}>
+        {{CPLocal "CWT_Type_Descriptive"}}
+      </label>
+      <label class="cw-ms-opt">
+        <input type="checkbox" value="Characteristic"
+               {{#if (cwHasType system.CyberWorkType "Characteristic")}}checked{{/if}}>
+        {{CPLocal "CWT_Type_Characteristic"}}
+      </label>
+      <label class="cw-ms-opt">
+        <input type="checkbox" value="Armor"
+               {{#if (cwHasType system.CyberWorkType "Armor")}}checked{{/if}}>
+        {{CPLocal "CWT_Type_Armor"}}
+      </label>
+      <label class="cw-ms-opt">
+        <input type="checkbox" value="Weapon"
+               {{#if (cwHasType system.CyberWorkType "Weapon")}}checked{{/if}}>
+        {{CPLocal "CWT_Type_Weapon"}}
+      </label>
+      <label class="cw-ms-opt">
+        <input type="checkbox" value="Implant"
+               {{#if (cwHasType system.CyberWorkType "Implant")}}checked{{/if}}>
+        {{CPLocal "CWT_Type_Implant"}}
+      </label>
+      <label class="cw-ms-opt">
+        <input type="checkbox" value="Chip"
+               {{#if (cwHasType system.CyberWorkType "Chip")}}checked{{/if}}>
+        {{CPLocal "CWT_Type_Chip"}}
+      </label>
+    </div>
   </div>
+</div>
 
   {{!-- ===== Characteristic ===== --}}
-  {{#if (equals system.CyberWorkType.Type "Characteristic")}}
+  {{#if (cwHasType system.CyberWorkType "Characteristic")}}
     <div class="field span-two-cells">
       <label class="larger">{{CPLocal "CWT_AddStat"}}</label>
       <span class="flex-pad"></span>
@@ -178,7 +216,7 @@
   {{/if}}
 
   {{!-- ===== Armor ===== --}}
-  {{#if (equals system.CyberWorkType.Type "Armor")}}
+  {{#if (cwHasType system.CyberWorkType "Armor")}}
     <div class="field span-two-cells">
       <label class="larger">{{CPLocal "ArmorLocations"}}</label>
       <span class="flex-pad"></span>
@@ -236,7 +274,7 @@
   {{/if}}
 
   {{!-- ===== Weapon ===== --}}
-  {{#if (equals system.CyberWorkType.Type "Weapon")}}
+  {{#if (cwHasType system.CyberWorkType "Weapon")}}
     <div class="field span-two-cells">
       <div class="field-list cw-weapon-grid">
         {{> (template "fields/select") label="WeaponType" edit="system.CyberWorkType.Weapon.weaponType" choices=weaponTypes}}
@@ -277,7 +315,7 @@
   {{/if}}
 
   {{!-- ===== Implant ===== --}}
-  {{#if (equals system.CyberWorkType.Type "Implant")}}
+  {{#if (cwHasType system.CyberWorkType "Implant")}}
     {{> (template "fields/number") label="CWT_Implant_OptionsAvailable" edit="system.CyberWorkType.OptionsAvailable"}}
 
     <div class="field">
@@ -330,7 +368,7 @@
   {{/if}}
 
   {{!-- ===== Chip: activation toggle ===== --}}
-  {{#if (equals system.CyberWorkType.Type "Chip")}}
+  {{#if (cwHasType system.CyberWorkType "Chip")}}
     <div class="field">
       <label>{{CPLocal "CWT_Chip_Active"}}</label>
       <span class="flex-pad"></span>
@@ -338,7 +376,7 @@
     </div>
   {{/if}}
   {{!-- ===== Chip ===== --}}
-  {{#if (equals system.CyberWorkType.Type "Chip")}}
+  {{#if (cwHasType system.CyberWorkType "Chip")}}
     {{#if cw.hasActor}}
       <div class="field">
         <label>{{CPLocal "CWT_AddChipSkill"}}</label>
