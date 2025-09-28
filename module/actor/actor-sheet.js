@@ -581,6 +581,49 @@ export class CyberpunkActorSheet extends ActorSheet {
 
       fp.render(true);
     });
+
+    // Skill list: switching the “chip” synchronizes implants (ChipActive) and updates all open sheets
+    html.on("change", ".chip-toggle input[data-skill-id]", async (ev) => {
+      const checked = !!ev.currentTarget.checked;
+      const skillId = ev.currentTarget.dataset.skillId;
+      const skill = this.actor.items.get(skillId);
+      if (!skill || skill.type !== "skill") return;
+
+      const skillName = skill.name;
+
+      await this.actor.updateEmbeddedDocuments("Item", [
+        { _id: skill.id, "system.isChipped": checked }
+      ], { render: false });
+
+      const chips = this.actor.items.filter(i =>
+        i.type === "cyberware" &&
+        i.system?.CyberWorkType?.Type === "Chip" &&
+        i.system?.CyberWorkType?.ChipSkills &&
+        Object.prototype.hasOwnProperty.call(i.system.CyberWorkType.ChipSkills, skillName)
+      );
+
+      if (chips.length) {
+        const updates = chips.map(ch => ({
+          _id: ch.id,
+          "system.CyberWorkType.ChipActive": checked
+        }));
+        await this.actor.updateEmbeddedDocuments("Item", updates, { render: false });
+      }
+
+      const agg = chips.length
+        ? Math.max(0, ...chips.map(ch => Number(ch.system?.CyberWorkType?.ChipSkills?.[skillName] || 0)))
+        : 0;
+
+      if (Number(skill.system?.chipLevel || 0) !== agg) {
+        await this.actor.updateEmbeddedDocuments("Item", [
+          { _id: skill.id, "system.chipLevel": agg }
+        ], { render: false });
+      }
+
+      if (this.rendered) this.render(true);
+      for (const ch of chips) if (ch.sheet?.rendered) ch.sheet.render(true);
+      if (skill.sheet?.rendered) skill.sheet.render(true);
+    });
   }
 
   /**

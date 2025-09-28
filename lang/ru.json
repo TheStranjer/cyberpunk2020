@@ -503,5 +503,7 @@
     "CYBERPUNK.CWT_ImplantType_CyberTorso": "Кибер-Торс",
     "CYBERPUNK.SDPCurrent": "Текущий SDP",
     "CYBERPUNK.SDPSumTooltip": "Сумма SDP имплантов и модулей в зоне",
-    "CYBERPUNK.SDPCurrentTooltip": "Редактируемое поле для отслеживания урона по SDP"
+    "CYBERPUNK.SDPCurrentTooltip": "Редактируемое поле для отслеживания урона по SDP",
+    "CYBERPUNK.ControlledByChip": "Контролируется чипом",
+    "CYBERPUNK.CWT_Chip_Active": "Активен"
 }

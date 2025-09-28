@@ -454,8 +454,12 @@ _prepareCyberware(sheet) {
     });
 
     // Chip.ChipSkills
-    html.on("input", "input[name='cw-chip-skill-search']", ev => {
-      addSkillFromInput(ev.currentTarget, "system.CyberWorkType.ChipSkills");
+    html.on("input", "input[name='cw-chip-skill-search']", async ev => {
+      await addSkillFromInput(ev.currentTarget, "system.CyberWorkType.ChipSkills");
+      await this._cp_syncChipLevelsToSkills();
+      if (typeof this._cp_syncActiveFlagsToSkills === "function") {
+        await this._cp_syncActiveFlagsToSkills();
+      }
     });
 
     html.on("mousedown", "input[name='cw-skill-search'], input[name='cw-chip-skill-search']", ev => {
@@ -477,7 +481,13 @@ _prepareCyberware(sheet) {
     html.on("click", ".cw-remove-skill", ev => this._cwDelete("system.CyberWorkType.Skill", ev.currentTarget.dataset.key));
     html.on("click", ".cw-remove-location", ev => this._cwDelete("system.CyberWorkType.Locations", ev.currentTarget.dataset.key));
     html.on("click", ".cw-remove-penalty", ev => this._cwDelete("system.CyberWorkType.Penalties", ev.currentTarget.dataset.key));
-    html.on("click", ".cw-remove-chipskill", ev => this._cwDelete("system.CyberWorkType.ChipSkills", ev.currentTarget.dataset.key));
+    html.on("click", ".cw-remove-chipskill", async ev => {
+      await this._cwDelete("system.CyberWorkType.ChipSkills", ev.currentTarget.dataset.key);
+      await this._cp_syncChipLevelsToSkills();
+      if (typeof this._cp_syncActiveFlagsToSkills === "function") {
+        await this._cp_syncActiveFlagsToSkills();
+      }
+    });
     html.on("click", ".cw-remove-mount", async ev => {
       const key = ev.currentTarget.dataset.key;
       const mp = this.item.system?.CyberWorkType?.MountPolicy || [];
@@ -582,6 +592,91 @@ _prepareCyberware(sheet) {
         await this._cwSet("system.CyberBodyType.Location", "");
       }
     });
+
+    // Changing the ChipSkills level
+    html.on("change", "input[name^='system.CyberWorkType.ChipSkills.']", async ev => {
+      const el = ev.currentTarget;
+      const n = Number(el.value);
+      await this._cwSet(el.name, Number.isFinite(n) ? n : 0);
+      await this._cp_syncChipLevelsToSkills();
+      if (typeof this._cp_syncActiveFlagsToSkills === "function") {
+        await this._cp_syncActiveFlagsToSkills();
+      }
+    });
+
+    html.on("change", "input[name='system.CyberWorkType.ChipActive']", async ev => {
+      const checked = !!ev.currentTarget.checked;
+      const prev = !!this.item.system?.CyberWorkType?.ChipActive;
+      if (prev === checked) return;
+
+      await this.item.update({ "system.CyberWorkType.ChipActive": checked }, { render: false });
+
+      if (typeof this._cp_syncChipLevelsToSkills === "function") {
+        await this._cp_syncChipLevelsToSkills();
+      }
+
+      if (typeof this._cp_syncActiveFlagsToSkills === "function") {
+        await this._cp_syncActiveFlagsToSkills();
+      }
+
+      const actor = this.item.actor;
+      if (actor?.sheet?.rendered) actor.sheet.render(true);
+      const affectedNames = Object.keys(this.item.system?.CyberWorkType?.ChipSkills || {});
+      for (const it of (actor?.items ?? [])) {
+        if (it.type !== "skill") continue;
+        if (!affectedNames.includes(it.name)) continue;
+        if (it.sheet?.rendered) it.sheet.render(true);
+      }
+      this.render(true);
+    });
+
+    // SKILL SHEET: enabling/disabling the “chip” for a skill
+    if (this.item.type === "skill") {
+      html.on("change", "input[name='system.isChipped']", async (ev) => {
+        const checked = !!ev.currentTarget.checked;
+        const actor = this.item.actor;
+        const skillName = this.item.name;
+
+        const chips = actor ? actor.items.filter(i =>
+          i.type === "cyberware" &&
+          i.system?.CyberWorkType?.Type === "Chip" &&
+          i.system?.CyberWorkType?.ChipSkills &&
+          Object.prototype.hasOwnProperty.call(i.system.CyberWorkType.ChipSkills, skillName)
+        ) : [];
+
+        if (actor && chips.length) {
+          const chipUpdates = chips.map(ch => ({
+            _id: ch.id,
+            "system.CyberWorkType.ChipActive": checked
+          }));
+          await actor.updateEmbeddedDocuments("Item", chipUpdates, { render: false });
+        }
+
+        if (actor) {
+          await actor.updateEmbeddedDocuments("Item", [
+            { _id: this.item.id, "system.isChipped": checked }
+          ], { render: false });
+        } else {
+          await this.item.update({ "system.isChipped": checked }, { render: false });
+        }
+
+        if (actor) {
+          const agg = chips.length
+            ? Math.max(0, ...chips.map(ch => Number(ch.system?.CyberWorkType?.ChipSkills?.[skillName] || 0)))
+            : 0;
+
+          if (Number(this.item.system?.chipLevel || 0) !== agg) {
+            await actor.updateEmbeddedDocuments("Item", [
+              { _id: this.item.id, "system.chipLevel": agg }
+            ], { render: false });
+          }
+        }
+
+        if (actor?.sheet?.rendered) actor.sheet.render(true);
+        for (const ch of chips) if (ch.sheet?.rendered) ch.sheet.render(true);
+        this.render(true);
+      });
+    }
   }
 
   /** @override */
@@ -638,5 +733,70 @@ _prepareCyberware(sheet) {
     }
 
     await this.item.update(data);
+  }
+
+  /**
+   * Collect the chip level aggregate for all of the actor's chip implants
+   * Take the maximum, key = skill name (as on the sheet)
+  */
+  async _cp_syncChipLevelsToSkills() {
+    const actor = this.item.actor;
+    if (!actor) return;
+
+    const chipItems = actor.items.filter(i =>
+      i.type === "cyberware" &&
+      i.system?.CyberWorkType?.Type === "Chip"
+    );
+
+    const agg = {};
+    for (const cw of chipItems) {
+      const map = cw.system?.CyberWorkType?.ChipSkills || {};
+      for (const [name, lvl] of Object.entries(map)) {
+        const n = Number(lvl) || 0;
+        if (n < 0) continue;
+        agg[name] = Math.max(agg[name] ?? 0, n);
+      }
+    }
+
+    const skillItems = actor.items.filter(i => i.type === "skill");
+    const updates = [];
+    for (const s of skillItems) {
+      const want = Number(agg[s.name] || 0);
+      const cur  = Number(s.system?.chipLevel || 0);
+      if (want !== cur) {
+        updates.push({ _id: s.id, "system.chipLevel": want });
+      }
+    }
+    if (updates.length) await actor.updateEmbeddedDocuments("Item", updates);
+  }
+  /**
+   * Set system.isChipped for skills based on all active chips of the actor
+   * true — if there is at least one active chip for the skill that grants this skill
+   * false — if there are no active chips for the skill
+  */
+  async _cp_syncActiveFlagsToSkills() {
+    const actor = this.item.actor;
+    if (!actor) return;
+
+    const activeChips = actor.items.filter(i =>
+      i.type === "cyberware" &&
+      i.system?.CyberWorkType?.Type === "Chip" &&
+      !!i.system?.CyberWorkType?.ChipActive
+    );
+
+    const activeMap = {};
+    for (const ch of activeChips) {
+      const skills = ch.system?.CyberWorkType?.ChipSkills || {};
+      for (const name of Object.keys(skills)) activeMap[name] = true;
+    }
+
+    const skills = actor.items.filter(i => i.type === "skill");
+    const updates = [];
+    for (const s of skills) {
+      const want = !!activeMap[s.name];
+      const cur  = !!(s.system?.isChipped);
+      if (want !== cur) updates.push({ _id: s.id, "system.isChipped": want });
+    }
+    if (updates.length) await actor.updateEmbeddedDocuments("Item", updates, { render: false });
   }
 }

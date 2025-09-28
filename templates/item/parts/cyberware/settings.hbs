@@ -329,6 +329,14 @@
     {{/if}}
   {{/if}}
 
+  {{!-- ===== Chip: activation toggle ===== --}}
+  {{#if (equals system.CyberWorkType.Type "Chip")}}
+    <div class="field">
+      <label>{{CPLocal "CWT_Chip_Active"}}</label>
+      <span class="flex-pad"></span>
+      <input type="checkbox" name="system.CyberWorkType.ChipActive" {{checked system.CyberWorkType.ChipActive}}/>
+    </div>
+  {{/if}}
   {{!-- ===== Chip ===== --}}
   {{#if (equals system.CyberWorkType.Type "Chip")}}
     {{#if cw.hasActor}}

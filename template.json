@@ -914,6 +914,7 @@
 				"SDP": 0,
 
 				"ChipSkills": {},
+				"ChipActive": false,
 
 				"Weapon": {
 					"weaponType": "Pistol",

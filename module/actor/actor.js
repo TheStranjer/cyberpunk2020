@@ -317,6 +317,33 @@ export class CyberpunkActor extends Actor {
     const cwCheckMods = this._getCharacteristicChecksMods();
     system.initiativeImplantMod = Number(cwCheckMods.initiative || 0);
     system._cwChecks = { saveStun: Number(cwCheckMods.saveStun || 0) };
+
+    // CHIPS: only active ones, auto-switching skills to chip level
+    const activeChipware = (eqCyber || []).filter(i =>
+      i.system?.CyberWorkType?.Type === "Chip" &&
+      !!i.system?.CyberWorkType?.ChipActive
+    );
+
+    // { “Skill Name”: maximum level among active chips }
+    const chipMap = {};
+    for (const cw of activeChipware) {
+      const skills = cw.system?.CyberWorkType?.ChipSkills || {};
+      for (const [skName, lvl] of Object.entries(skills)) {
+        const n = Number(lvl) || 0;
+        if (!n) continue;
+        chipMap[skName] = Math.max(chipMap[skName] ?? 0, n);
+      }
+    }
+    const skillItems = this.items.contents.filter(i => i.type === "skill");
+    for (const si of skillItems) si.system.autoChipped = false;
+
+    for (const si of skillItems) {
+      const chipLvl = chipMap[si.name];
+      if (!chipLvl) continue;
+      si.system.chipLevel = chipLvl;
+      si.system.isChipped = true;
+      si.system.autoChipped = true;
+    }
   }
 
   /**
@@ -378,7 +405,8 @@ export class CyberpunkActor extends Actor {
     if (!skill) return 0;
     const data = skill.system ?? skill;
     let value = Number(data.level) || 0;
-    if (data.isChipped) value = Number(data.chipLevel) || 0;
+    const chipActive = !!(data.isChipped || data.autoChipped);
+    if (chipActive) value = Number(data.chipLevel) || 0;
     return value;
   }
 
