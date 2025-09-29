@@ -1,5 +1,5 @@
 import { martialOptions, meleeAttackTypes, meleeBonkOptions, rangedModifiers, weaponTypes } from "../lookups.js"
-import { localize, localizeParam } from "../utils.js"
+import { localize, localizeParam, cwHasType } from "../utils.js"
 import { ModifiersDialog } from "../dialog/modifiers.js"
 import { SortOrders } from "./skill-sort.js";
 
@@ -197,6 +197,40 @@ sheetData.cyberwareSegmentsLeft = [
 
   /** @override */
   activateListeners(html) {
+    const root = html?.[0] || html;
+
+    if (this._cpAvatarCapture) {
+      try {
+        root.removeEventListener("pointerdown", this._cpAvatarCapture, { capture: true });
+        root.removeEventListener("click", this._cpAvatarCapture, { capture: true });
+      } catch (_) {}
+    }
+
+    const cpAvatarCapture = (ev) => {
+      const editable = ev.target?.closest?.("[data-edit]");
+      if (!editable) return;
+      if ((editable.dataset?.edit || "") !== "img") return;
+
+      ev.preventDefault();
+      ev.stopImmediatePropagation?.();
+
+      const fp = new FilePicker({
+        type: "image",
+        activeSource: "data",
+        current: "",
+        callback: (path) => this.actor.update({ img: path })
+      });
+      fp.render(true);
+      setTimeout(() => {
+        try { fp.browse({ activeSource: "data", current: "" }); }
+        catch { try { fp.browse("data", "", {}); } catch (e) { console.warn(e); } }
+      }, 0);
+    };
+
+    root.addEventListener("pointerdown", cpAvatarCapture, { capture: true });
+    root.addEventListener("click", cpAvatarCapture, { capture: true });
+    this._cpAvatarCapture = cpAvatarCapture;
+
     super.activateListeners(html);
 
     /**
@@ -229,6 +263,18 @@ sheetData.cyberwareSegmentsLeft = [
     // If not editable, do nothing further
     if (!this.options.editable) return;
 
+    // SDP: manual edit current — save and do not overwrite until the amount changes
+    html.on('change', 'input[name^="system.sdp.current."]', ev => {
+      const input = ev.currentTarget;
+      const path = input.getAttribute('name');
+      const zone = path.split('.').pop();
+      const value = Number(input.value || 0);
+
+      this.actor.update({
+        [`system.sdp.current.${zone}`]: value
+      });
+    });
+
     // Stat roll
     html.find('.stat-roll').click(ev => {
       let statName = ev.currentTarget.dataset.statName;
@@ -253,13 +299,43 @@ sheetData.cyberwareSegmentsLeft = [
     // Toggle skill chipped
     html.find(".chip-toggle").click(async ev => {
       const skill = this.actor.items.get(ev.currentTarget.dataset.skillId);
+      if (!skill) return;
       const toggled = !skill.system.isChipped;
+      const skillName = skill.name;
+
+      // Search for all chips that affect this skill
+      const chips = this.actor.items.filter(i =>
+        i.type === "cyberware" &&
+        cwHasType(i, "Chip") &&
+        i.system?.CyberWorkType?.ChipSkills &&
+        Object.prototype.hasOwnProperty.call(i.system.CyberWorkType.ChipSkills, skillName)
+      );
+
+      if (chips.length) {
+        const chipUpdates = chips.map(ch => ({
+          _id: ch.id,
+          "system.CyberWorkType.ChipActive": toggled
+        }));
+        await this.actor.updateEmbeddedDocuments("Item", chipUpdates, { render: false });
+      }
 
       await this.actor.updateEmbeddedDocuments("Item", [{
         _id: skill.id,
         "system.isChipped": toggled,
         "system.-=chipped": null
-      }]);
+      }], { render: false });
+
+      // If there are no chips, leave the manual chipLevel unchanged
+      if (chips.length) {
+        const agg = Math.max(0, ...chips.map(ch => Number(ch.system?.CyberWorkType?.ChipSkills?.[skillName] || 0)));
+        if (Number(skill.system?.chipLevel || 0) !== agg) {
+          await this.actor.updateEmbeddedDocuments("Item", [
+            { _id: skill.id, "system.chipLevel": agg }
+          ], { render: false });
+        }
+      }
+
+      if (this.rendered) this.render(true);
     });
     
     // Skill sorting
@@ -270,7 +346,7 @@ sheetData.cyberwareSegmentsLeft = [
 
     // Skill search: auto-filter + clear button
     const $skillSearch = html.find('input.skill-search[name="system.transient.skillFilter"]');
-    const $skillClear  = html.find('.skill-search-clear');
+    const $skillClear = html.find('.skill-search-clear');
 
     const toggleClear = () => $skillClear.toggleClass('is-visible', !!$skillSearch.val());
 
@@ -322,7 +398,7 @@ sheetData.cyberwareSegmentsLeft = [
 
     // Prompt for modifiers
     html.find(".skill-ask-mod")
-      .on("click",  ev => ev.stopPropagation())
+      .on("click", ev => ev.stopPropagation())
       .on("change", async ev => {
         ev.stopPropagation();
 
@@ -617,7 +693,49 @@ sheetData.cyberwareSegmentsLeft = [
 
     attachChipwareTooltips(html[0] ?? document);
     ["drop", "dragend", "click", "mousedown", "mouseup"].forEach(eventName => {
-      document.addEventListener(eventName, hideTooltip);
+      document.addEventListener(eventName, hideTooltip); 
+    });
+    
+    // Skill list: switching the “chip” synchronizes implants (ChipActive) and updates all open sheets
+    html.on("change", ".chip-toggle input[data-skill-id]", async (ev) => {
+      const checked = !!ev.currentTarget.checked;
+      const skillId = ev.currentTarget.dataset.skillId;
+      const skill = this.actor.items.get(skillId);
+      if (!skill || skill.type !== "skill") return;
+
+      const skillName = skill.name;
+
+      await this.actor.updateEmbeddedDocuments("Item", [
+        { _id: skill.id, "system.isChipped": checked }
+      ], { render: false });
+
+      const chips = this.actor.items.filter(i =>
+        i.type === "cyberware" &&
+        cwHasType(i, "Chip") &&
+        i.system?.CyberWorkType?.ChipSkills &&
+        Object.prototype.hasOwnProperty.call(i.system.CyberWorkType.ChipSkills, skillName)
+      );
+
+      if (chips.length) {
+        const updates = chips.map(ch => ({
+          _id: ch.id,
+          "system.CyberWorkType.ChipActive": checked
+        }));
+        await this.actor.updateEmbeddedDocuments("Item", updates, { render: false });
+      }
+
+      if (chips.length) {
+        const agg = Math.max(0, ...chips.map(ch => Number(ch.system?.CyberWorkType?.ChipSkills?.[skillName] || 0)));
+        if (Number(skill.system?.chipLevel || 0) !== agg) {
+          await this.actor.updateEmbeddedDocuments("Item", [
+            { _id: skill.id, "system.chipLevel": agg }
+          ], { render: false });
+        }
+      }
+
+      if (this.rendered) this.render(true);
+      for (const ch of chips) if (ch.sheet?.rendered) ch.sheet.render(true);
+      if (skill.sheet?.rendered) skill.sheet.render(true);
     });
   }
 

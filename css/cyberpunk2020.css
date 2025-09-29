@@ -705,9 +705,57 @@ div.statderive .value.rightborder {
   display: flex;
   flex-flow: column nowrap;
 }
-/* отступы нужны только для старого flex-блока; в новой сетке .field-list их не должно быть */
+
+.armor-display {
+  height: auto !important;
+  min-height: 0 !important;
+  grid-auto-rows: minmax(0, max-content);
+  align-content: start;
+  padding-bottom: 8px;
+}
+
+.armor-display .armor-segment {
+  height: auto;
+}
+
+.armor-display .armor-segment .segment-sp,
+.armor-display .armor-segment .segment-sdp-row,
+.armor-display .armor-segment .segment-name {
+  grid-column: 1 / -1 !important;
+}
+
+.armor-display .armor-segment .segment-sdp-row {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 4px;
+  margin-top: 2px;
+  margin-bottom: 2px;
+}
+
+.armor-display .armor-segment .segment-sdp-row .smallnumber {
+  width: 2.2em;
+  text-align: center;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+.armor-display .armor-segment .segment-name {
+  display: block;
+}
+
+.armor-display ~ .field {
+  clear: both;
+  margin-top: 10px;
+}
+
+.cyberpunk .armor-display {
+  max-height: none !important;
+  height: auto !important;
+  grid-template-rows: auto auto auto !important;
+}
+
 .combat-tab .combat-rolls .flexrow .field + .field { margin-left: 5px; }
-/* шапка боевых бросков, как в "Снаряжении": две колонки */
 .combat-tab .combat-rolls .field-list { grid-template-columns: 1fr 1fr; }
 
 .combat-tab .combat-rolls .field-list .field label { min-width: 0; }
@@ -718,14 +766,12 @@ div.statderive .value.rightborder {
   min-width: 2.6em;
   text-align: center;
 }
-/* Skills: не растягивать инпут уровня по высоте строки */
 .cyberpunk .field.skill input[type="number"] {
   align-self: center;
   height: 24px;
   line-height: 24px;
 }
 
-/* компактная ширина, как и раньше */
 .cyberpunk .field.skill input[type="number"].smallnumber {
   flex: 0 0 2.5em;
   width: 2.5em;
@@ -807,6 +853,108 @@ div.statderive .value.rightborder {
   border-top: 0px;
   margin-top: -2px;
 }
+
+/* === Cyberware Types: dropdown-multiselect, styled like <select> === */
+.cyberpunk .field .cw-ms {
+  position: relative;
+  flex: 1 1 auto;
+  min-width: 0;
+  max-width: 100%;
+}
+
+/* Trigger button */
+.cyberpunk .field .cw-ms-trigger {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  height: 100%;
+  box-sizing: border-box;
+  min-width: 0;
+  padding: 0 6px;
+  line-height: 24px;
+  border: 1px solid var(--color-border, #444);
+  background: var(--color-bg, #111);
+  color: inherit;
+  cursor: pointer;
+}
+.cyberpunk .field .cw-ms-trigger:focus {
+  outline: 1px solid var(--color-accent, #999);
+}
+.cyberpunk .field .cw-ms-labels {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.cyberpunk .field .cw-ms-caret {
+  flex: 0 0 auto;
+  margin-left: 8px;
+}
+
+/* Drop-down menu */
+.cyberpunk .field .cw-ms-menu {
+  position: absolute;
+  left: 0; right: 0; top: calc(100% + 2px);
+  display: none;
+  z-index: 1000;
+  border: 1px solid var(--color-border, #444);
+  background: var(--color-bg, #111);
+  padding: 6px;
+  max-height: 240px;
+  overflow: auto;
+  box-shadow: 0 4px 12px rgba(0,0,0,.35);
+}
+.cyberpunk .field .cw-ms.open .cw-ms-menu { display: block; }
+.cyberpunk .field .cw-ms-opt { display: flex; align-items: center; gap: 6px; padding: 2px 0; }
+.cyberpunk .field .cw-ms-opt input { margin: 0; }
+
+.cyberpunk .field select.cw-add-stat,
+.cyberpunk .field select.cw-add-penalty,
+.cyberpunk .field select.cw-add-check,
+.cyberpunk .cw-weapon-grid .field select,
+.cyberpunk .field select[name="system.CyberWorkType.Weapon.attackSkill"],
+.cyberpunk .field select[name="system.MountZone"],
+.cyberpunk .field select[name="system.cyberwareType"],
+.cyberpunk .field select.cw-add-location,
+.cyberpunk .field select[name="system.CyberBodyType.Location"]{
+  min-width: 0;
+  max-width: 100%;
+  width: 100%;
+  box-sizing: border-box;
+}
+/* --- Align small number inputs in modifier rows (stats / penalties / checks) --- */
+.cyberpunk .field-list .field input.smallnumber {
+  height: 24px;
+  line-height: 24px;
+  padding: 0 4px;
+  margin: 0;
+  box-sizing: border-box;
+  align-self: center;
+}
+.cyberpunk .field-list .field a.button.danger {
+  display: flex;
+  align-items: center;
+  align-self: stretch;
+  height: auto;
+  line-height: 1;
+  padding: 0 6px;
+  box-sizing: border-box;
+}
+/* --- Weapon sheet: make selects shrink properly --- */
+.cyberpunk .field select[name="system.reliability"],
+.cyberpunk .field select[name="system.weaponType"],
+.cyberpunk .field select[name="system.attackType"],
+.cyberpunk .field select[name="system.attackSkill"],
+.cyberpunk .field select[name="system.concealability"],
+.cyberpunk .field select[name="system.availability"] {
+  min-width: 0;
+  max-width: 100%;
+  width: 100%;
+  box-sizing: border-box;
+}
+.cyberpunk .field .flex-pad { min-width: 0; }
 
 /* CYBERWARE TAB START*/
 .cyberpunk .cyberware-header {
@@ -1084,16 +1232,12 @@ div.statderive .value.rightborder {
   align-items: stretch;
 }
 
-/* всем детям — наследовать фон и уметь сжиматься */
 .cyberpunk .tab[data-tab="cyberware"] .field.gear > * { min-width: 0; }
 
-/* Единый чёрный фон у строки импланта, как у оружия */
 .cyberpunk .tab[data-tab="cyberware"] .field.gear {
   background-color: black;
 }
 
-
-/* иконка — фикс. ширина, не сжимается до 0 */
 .cyberpunk .tab[data-tab="cyberware"] .field.gear .field-image {
   flex: 0 0 24px;
   width: 24px;
@@ -1105,24 +1249,20 @@ div.statderive .value.rightborder {
   background-size: contain;
 }
 
-/* название — занимает всё, что между иконкой и правой частью */
 .cyberpunk .tab[data-tab="cyberware"] .field.gear label {
   flex: 1 1 auto;
   min-width: 0;
 }
 
-/* тонкий «разделитель», чтобы не отъедал ширину */
 .cyberpunk .tab[data-tab="cyberware"] .field.gear .flex-pad {
   flex: 0 0 8px;
 }
 
-/* блок "ПЧ: N" — компактный, не растягиваем */
 .cyberpunk .tab[data-tab="cyberware"] .field.gear > span:nth-last-child(3) {
   flex: 0 0 auto;
   margin-left: 8px;
 }
 
-/* тип (справа) — сжимается, но не давит имя; макс ~40% строки */
 .cyberpunk .tab[data-tab="cyberware"] .field.gear .cw-type {
   flex: 0 1 40%;
   min-width: 0;
@@ -1137,7 +1277,6 @@ div.statderive .value.rightborder {
   white-space: nowrap;
 }
 
-/* уж совсем узкое окно — разрешаем перенос типа по словам */
 @media (max-width: 560px) {
   .cyberpunk .tab[data-tab="cyberware"] .field.gear .cw-type > p {
     white-space: normal;

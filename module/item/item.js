@@ -1,6 +1,6 @@
 import { weaponTypes, rangedAttackTypes, meleeAttackTypes, fireModes, rangedModifiers, ranges, rangeDCs, rangeResolve, strengthDamageBonus, getMartialActionBonus, martialActions } from "../lookups.js"
 import { Multiroll, makeD10Roll } from "../dice.js"
-import { clamp, deepLookup, localize, localizeParam, rollLocation } from "../utils.js"
+import { clamp, deepLookup, localize, localizeParam, rollLocation, cwHasType } from "../utils.js"
 import { CyberpunkActor } from "../actor/actor.js";
 
 /**
@@ -25,7 +25,7 @@ export class CyberpunkItem extends Item {
   _getWeaponSystem() {
     if (this.type === "weapon") return this.system;
     const cwt = this.system?.CyberWorkType;
-    if (this.type === "cyberware" && cwt?.Type === "Weapon") return cwt.Weapon || {};
+    if (this.type === "cyberware" && cwHasType(cwt, "Weapon")) return cwt.Weapon || {};
     return this.system;
   }
 
@@ -34,15 +34,19 @@ export class CyberpunkItem extends Item {
       return await this.update({[`system.${field}`]: value});
     }
     const cwt = this.system?.CyberWorkType;
-    if (this.type === "cyberware" && cwt?.Type === "Weapon") {
+    if (this.type === "cyberware" && cwHasType(this, "Weapon")) {
       return await this.update({[`system.CyberWorkType.Weapon.${field}`]: value});
     }
     return null;
   }
 
   isRanged() {
-    const system = this._getWeaponSystem();
-    return !(system.weaponType === "Melee" || (system.weaponType === "Exotic" && Object.keys(meleeAttackTypes).includes(system.attackType)));
+    const sys = this._getWeaponSystem();
+    const type = String(sys?.weaponType || "").toLowerCase();
+    const atk  = sys?.attackType;
+    const isMeleeByType = type === "melee";
+    const isMeleeByAtk  = atk && Object.values(meleeAttackTypes).includes(atk);
+    return !(isMeleeByType || isMeleeByAtk);
   }
   
   _prepareWeaponData(data) {
@@ -108,7 +112,7 @@ export class CyberpunkItem extends Item {
         this.__weaponRoll();
         break;
       case "cyberware":
-        if (this.system?.CyberWorkType?.Type === "Weapon") this.__weaponRoll();
+        if (cwHasType(this, "Weapon")) this.__weaponRoll();
         break;
       default:
         break;
@@ -259,7 +263,7 @@ export class CyberpunkItem extends Item {
   }
 
   __getFireModes() {
-    const isWeaponDoc = this.type === "weapon" || (this.type === "cyberware" && this.system?.CyberWorkType?.Type === "Weapon");
+    const isWeaponDoc = this.type === "weapon" || (this.type === "cyberware" && cwHasType(this, "Weapon"));
     if (!isWeaponDoc) {
       console.error(`${this.name} is not a weapon, and therefore has no fire modes`);
       return [];
@@ -286,8 +290,9 @@ export class CyberpunkItem extends Item {
     else {
       attackTerms.push(...(this.__meleeModTerms(attackMods)));
     }
-    if(system.accuracy) {
-      attackTerms.push(system.accuracy);
+    const weaponAccuracy = Number(system?.accuracy ?? 0) || 0;
+    if (weaponAccuracy !== 0) {
+      attackTerms.push("@weaponAccuracy");
     }
 
     const attackSkillKey = (system?.attackSkill ?? this.system?.attackSkill) || "";
@@ -296,7 +301,8 @@ export class CyberpunkItem extends Item {
 
     return await makeD10Roll(attackTerms, {
       stats: this.actor.system.stats,
-      attackSkill: attackSkillVal
+      attackSkill: attackSkillVal,
+      weaponAccuracy
     }).evaluate();
   }
 
@@ -547,49 +553,60 @@ export class CyberpunkItem extends Item {
     const extraMod = Number(attackMods.extraMod || 0);
 
     // Martial arts throw formula: reflex + skill level + special technique + action bonus + additional mod
+    // If the reception is performed through a weapon item (including cyber weapons), we take its WA
+    const sysForAcc = this._getWeaponSystem ? this._getWeaponSystem() : this.system;
+    const weaponAccuracy = Number(sysForAcc?.accuracy ?? 0) || 0;
+
     let attackRoll = new Roll(
-      `1d10x10 + @stats.ref.total + @attackBonus + @keyTechniqueBonus + @actionBonus + @extraMod`, 
+      `1d10x10 + @stats.ref.total + @attackBonus + @keyTechniqueBonus + @actionBonus + @extraMod${weaponAccuracy !== 0 ? " + @weaponAccuracy" : ""}`, 
       {
         stats: system.stats,
         attackBonus: martialSkillLevel,
         keyTechniqueBonus: keyTechniqueBonus,
         actionBonus: actionBonus,
-        extraMod: extraMod
+        extraMod: extraMod,
+        weaponAccuracy
       }
     );
     results.addRoll(attackRoll, {name: "Attack"});
+
+    // Base damage: if the weapon has a damage field, use it
+    // Otherwise, fall back to the standard dice rolls for strikes/kicks/throws/chokes
+    const sysWeapon = this._getWeaponSystem ? this._getWeaponSystem() : this.system;
+    const baseWeaponDamage = (sysWeapon?.damage && String(sysWeapon.damage).trim()) ? String(sysWeapon.damage).trim() : "";
     let damageFormula = "";
 
-    // Directly damaging things
-    if(action == martialActions.strike) {
+    if (baseWeaponDamage) {
+      damageFormula = `${baseWeaponDamage}+@strengthBonus+@martialDamageBonus`;
+    } else if (action === martialActions.strike) {
       damageFormula = "1d3+@strengthBonus+@martialDamageBonus";
-    }
-    else if([martialActions.kick, martialActions.throw, martialActions.choke].includes(action)) {
-      damageFormula = "1d6+@strengthBonus+@martialDamageBonus"; // Seriously, WHY is kicking objectively better?!
-    }
-
-    if (damageFormula !== "" && attackMods.cyberTerminus) {
-        switch (attackMods.cyberTerminus) {
-            case "CyberTerminusX2":
-                damageFormula = `(${damageFormula})*2`;
-                break;
-            case "CyberTerminusX3":
-                damageFormula = `(${damageFormula})*3`;
-                break;
-            case "NoCyberlimb":
-            default:
-                break;
-        }
+    } else if ([martialActions.kick, martialActions.throw, martialActions.choke].includes(action)) {
+      damageFormula = "1d6+@strengthBonus+@martialDamageBonus";
     }
 
-    if(damageFormula !== "") {
-      let loc = await rollLocation(attackMods.targetArea);
-      results.addRoll(loc.roll, {name: localize("Location"), flavor: loc.areaHit});
+    // CyberTerminus modifier
+    if (attackMods?.cyberTerminus) {
+      switch (attackMods.cyberTerminus) {
+        case "CyberTerminusX2":
+          damageFormula = `(${damageFormula})*2`;
+          break;
+        case "CyberTerminusX3":
+          damageFormula = `(${damageFormula})*3`;
+          break;
+        case "NoCyberlimb":
+        default:
+          break;
+      }
+    }
+
+    if (damageFormula) {
+      const loc = await rollLocation(attackMods.targetArea);
+      results.addRoll(loc.roll, { name: localize("Location"), flavor: loc.areaHit });
       results.addRoll(new Roll(damageFormula, {
         strengthBonus: strengthDamageBonus(system.stats.bt.total),
-        // Martial arts get a damage bonus.
+        // Martial arts get a damage bonus
         martialDamageBonus: isMartial ? martialSkillLevel : 0
-      }), {name: localize("Damage")});
+      }), { name: localize("Damage") });
     }
     results.defaultExecute({img: this.img});
     return results;

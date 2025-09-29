@@ -733,6 +733,11 @@
 							10
 						]
 					}
+				},
+				"sdp": {
+					"sum":     { "Head":0, "Torso":0, "lArm":0, "rArm":0, "lLeg":0, "rLeg":0 },
+					"current": { "Head":0, "Torso":0, "lArm":0, "rArm":0, "lLeg":0, "rLeg":0 },
+					"touched": { "Head":false, "Torso":false, "lArm":false, "rArm":false, "lLeg":false, "rLeg":false }
 				}
 			},
 			"gear": {
@@ -877,11 +882,13 @@
 			"cyberwareSubtype": "",
 			"abbrev": "",
 			"humanityLoss": 0,
+			"MountZone": "",
 
 			"Module": {
 				"IsModule": false,
-				"AllowedParentCyberwareType": [],
-				"TakesOptions": 0
+				"AllowedParentCyberwareType": "",
+				"SlotsTaken": 1,
+				"ParentId": ""
 			},
 
 			"CyberBodyType": {
@@ -905,9 +912,10 @@
 
 				"OptionsAvailable": 0,
 				"SDP": 0,
-				"MountPolicy": [],
 
 				"ChipSkills": {},
+				"ChipActive": false,
+				"Types": [],
 
 				"Weapon": {
 					"weaponType": "Pistol",

@@ -1,6 +1,6 @@
 import { weaponTypes, meleeAttackTypes, rangedAttackTypes, attackSkills, concealability, availability, reliability, getStatNames } from "../lookups.js";
 import { formulaHasDice } from "../dice.js";
-import { localize } from "../utils.js";
+import { localize, cwHasType } from "../utils.js";
 import { getMartialKeyByName } from '../translations.js'
 
 /**
@@ -103,8 +103,26 @@ _prepareCyberware(sheet) {
     return k;
   };
 
-  const cwt = this.item.system?.CyberWorkType ?? { Type: "Descriptive" };
+  const sys = this.item?.system ?? {};
+  const cwt = sys.CyberWorkType ?? {};
   sheet.cw = sheet.cw ?? {};
+
+  sheet.cw.types = Array.isArray(cwt.Types) && cwt.Types.length
+    ? [...cwt.Types]
+    : (cwt.Type ? [cwt.Type] : ["Descriptive"]);
+
+  const mapKeyToLoc = (k) => {
+    switch (k) {
+      case "Descriptive": return game.i18n.localize("CYBERPUNK.CWT_Type_Descriptive");
+      case "Characteristic": return game.i18n.localize("CYBERPUNK.CWT_Type_Characteristic");
+      case "Armor": return game.i18n.localize("CYBERPUNK.CWT_Type_Armor");
+      case "Weapon": return game.i18n.localize("CYBERPUNK.CWT_Type_Weapon");
+      case "Implant": return game.i18n.localize("CYBERPUNK.CWT_Type_Implant");
+      case "Chip": return game.i18n.localize("CYBERPUNK.CWT_Type_Chip");
+      default: return k;
+    }
+  };
+  sheet.cw.typeLabels = sheet.cw.types.map(mapKeyToLoc);
 
   // Ensure Module exists for bindings
   if (!this.item.system.Module) {
@@ -191,7 +209,8 @@ _prepareCyberware(sheet) {
     { key: "Torso", label: L("Torso") },
     { key: "Arm", label: L("Arm") },
     { key: "Leg", label: L("Leg") },
-    { key: "Nervous", label: L("Nervous") }
+    { key: "Nervous", label: L("Nervous") },
+    { key: "Chip",   label: L("Chip") }
   ];
   sheet.cw.bodyZones = bodyAll;
 
@@ -213,37 +232,120 @@ _prepareCyberware(sheet) {
     sheet.attackSkills = (this.actor.itemTypes.skill || []).map(s => s.name).sort((a, b) => a.localeCompare(b));
   }
 
-  // Allowed parent cyberware type + список для редактируемого cyberwareType
-  const defaults = ["CYBEROPTIC", "CYBEREAR", "CYBERARM", "CYBERHAND", "CYBERLEG", "CYBERFOOT", "IMPLANT"];
+  const TYPE_CHOICES_BASE = [
+    { value: "CyberArm", localKey: "CWT_ImplantType_CyberArm" },
+    { value: "CyberLeg", localKey: "CWT_ImplantType_CyberLeg" },
+    { value: "CyberAudio", localKey: "CWT_ImplantType_CyberAudio" },
+    { value: "CyberOptic", localKey: "CWT_ImplantType_CyberOptic" },
+    { value: "CyberTorso", localKey: "CWT_ImplantType_CyberTorso" }
+  ];
+
+  const typeAliases = {
+    "CYBERARM": "CyberArm",
+    "CYBERHAND": "CyberArm",
+    "CYBERLEG": "CyberLeg",
+    "CYBERFOOT": "CyberLeg",
+    "CYBEREAR": "CyberAudio",
+    "CYBEROPTIC":"CyberOptic",
+    "IMPLANT": "CyberTorso",
+    "Arm": "CyberArm", "Leg": "CyberLeg",
+    "Ear": "CyberAudio", "Eye": "CyberOptic", "Torso": "CyberTorso"
+  };
+
+  const pickType = (t) => {
+    if (!t) return null;
+    if (typeof t === "string") {
+      const k = t.trim();
+      return typeAliases[k] || k;
+    }
+    if (typeof t === "object") {
+      const k = (t.key ?? t.value ?? t.name);
+      if (typeof k === "string") {
+        const s = k.trim();
+        return typeAliases[s] || s;
+      }
+    }
+    return null;
+  };
 
   const worldTypes = Array.from(game.items ?? [])
     .filter(i => i.type === "cyberware")
-    .map(i => i.system?.cyberwareType)
+    .map(i => pickType(i.system?.cyberwareType))
     .filter(Boolean);
 
   const actorTypes = this.actor
     ? (this.actor.itemTypes.cyberware ?? [])
-        .map(i => i.system?.cyberwareType)
+        .map(i => pickType(i.system?.cyberwareType))
         .filter(Boolean)
     : [];
 
-  const availableTypes = Array.from(new Set([...defaults, ...worldTypes, ...actorTypes]))
-    .sort((a, b) => a.localeCompare(b));
+  const known = new Set(TYPE_CHOICES_BASE.map(c => c.value));
+  const extra = Array.from(new Set([...worldTypes, ...actorTypes]))
+    .filter(v => typeof v === "string" && v.length && !known.has(v))
+    .map(v => ({ value: v, localKey: v }));
 
-  // Включаем текущий тип, если вдруг его нет в сборке
-  const curType = this.item.system?.cyberwareType;
-  if (curType && !availableTypes.includes(curType)) availableTypes.unshift(curType);
+  sheet.cw.parentCwTypeChoices = [...TYPE_CHOICES_BASE, ...extra];
 
-  // Для селекта "Type" partial ждёт МАССИВ СТРОК (иначе будут [object Object] и/или .split-ошибка)
-  sheet.cw.cyberwareTypeOptions = availableTypes;
-
-  // Где нужно выводить «value/label» отдельными полями — оставляем массив объектов
-  sheet.cw.parentCwTypeOptions = availableTypes.map(t => ({ key: t, label: t }));
-
-  // Implant: «slots remaining» (пока без авто-учёта модулей)
+  // Implant: free/taken options with automatic module accounting
   const provided = Number(this.item.system?.CyberWorkType?.OptionsAvailable) || 0;
-  const used = 0; // автоучёт модулей добавим позже
+  let used = 0;
+  if (this.actor) {
+    const all = this.actor.items?.contents || [];
+    const selfId = this.item.id;
+    used = all
+      .filter(i => i.type === "cyberware" && i.system?.Module?.IsModule && i.system?.Module?.ParentId === selfId)
+      .reduce((sum, m) => sum + (Number(m.system?.Module?.SlotsTaken) || 0), 0);
+  }
+  sheet.cw.implantSlotsUsed = used;
+  sheet.cw.implantSlotsTotal = provided;
   sheet.cw.implantSlotsLeft = Math.max(0, provided - used);
+
+  // Module: implants available on the actor that match the type
+  const isModule = !!this.item.system?.Module?.IsModule;
+  if (isModule && this.actor) {
+    const needType = this.item.system?.Module?.AllowedParentCyberwareType || "";
+    const all = this.actor.items?.contents || [];
+    // count the available slots for each candidate
+    const leftFor = (p) => {
+      const provided = Number(p.system?.CyberWorkType?.OptionsAvailable || 0);
+      const used = all
+        .filter(i => i.type === "cyberware" && i.system?.Module?.IsModule && i.system?.Module?.ParentId === p.id)
+        .reduce((sum, m) => sum + (Number(m.system?.Module?.SlotsTaken) || 0), 0);
+      return Math.max(0, provided - used);
+    };
+
+  sheet.cw.parentImplants = all
+    .filter(i =>
+      i.type === "cyberware" &&
+      cwHasType(i, "Implant") &&
+      (!needType || String(i.system?.cyberwareType || "") === needType)
+    )
+    .map(i => ({ id: i.id, name: i.name, left: leftFor(i) }));
+  } else {
+    sheet.cw.parentImplants = [];
+  }
+
+  // Implant: free/taken options
+  if (cwHasType(this.item, "Implant")) {
+    const provided = Number(this.item.system?.CyberWorkType?.OptionsAvailable) || 0;
+    let used = 0;
+
+    if (this.actor) {
+      const all = this.actor.items?.contents || [];
+      const selfId = this.item.id;
+      used = all.reduce((sum, it) => {
+        const mod = it.system?.Module;
+        if (it.type === "cyberware" && mod?.IsModule && mod?.ParentId === selfId) {
+          return sum + (Number(mod.SlotsTaken) || 0);
+        }
+        return sum;
+      }, 0);
+    }
+
+    sheet.cw.implantSlotsUsed = used;
+    sheet.cw.implantSlotsTotal = provided;
+    sheet.cw.implantSlotsLeft = Math.max(0, provided - used);
+  }
 }
 
   async _cwSet(path, value) {
@@ -371,8 +473,12 @@ _prepareCyberware(sheet) {
     });
 
     // Chip.ChipSkills
-    html.on("input", "input[name='cw-chip-skill-search']", ev => {
-      addSkillFromInput(ev.currentTarget, "system.CyberWorkType.ChipSkills");
+    html.on("input", "input[name='cw-chip-skill-search']", async ev => {
+      await addSkillFromInput(ev.currentTarget, "system.CyberWorkType.ChipSkills");
+      await this._cp_syncChipLevelsToSkills();
+      if (typeof this._cp_syncActiveFlagsToSkills === "function") {
+        await this._cp_syncActiveFlagsToSkills();
+      }
     });
 
     html.on("mousedown", "input[name='cw-skill-search'], input[name='cw-chip-skill-search']", ev => {
@@ -394,7 +500,13 @@ _prepareCyberware(sheet) {
     html.on("click", ".cw-remove-skill", ev => this._cwDelete("system.CyberWorkType.Skill", ev.currentTarget.dataset.key));
     html.on("click", ".cw-remove-location", ev => this._cwDelete("system.CyberWorkType.Locations", ev.currentTarget.dataset.key));
     html.on("click", ".cw-remove-penalty", ev => this._cwDelete("system.CyberWorkType.Penalties", ev.currentTarget.dataset.key));
-    html.on("click", ".cw-remove-chipskill", ev => this._cwDelete("system.CyberWorkType.ChipSkills", ev.currentTarget.dataset.key));
+    html.on("click", ".cw-remove-chipskill", async ev => {
+      await this._cwDelete("system.CyberWorkType.ChipSkills", ev.currentTarget.dataset.key);
+      await this._cp_syncChipLevelsToSkills();
+      if (typeof this._cp_syncActiveFlagsToSkills === "function") {
+        await this._cp_syncActiveFlagsToSkills();
+      }
+    });
     html.on("click", ".cw-remove-mount", async ev => {
       const key = ev.currentTarget.dataset.key;
       const mp = this.item.system?.CyberWorkType?.MountPolicy || [];
@@ -440,15 +552,265 @@ _prepareCyberware(sheet) {
       cyber.sheet.render(true);
     });
 
-    // Пересчитывать свободные слоты при смене "Slots provided"
+    // Recalculate available slots when changing “Slots provided”
     html.find('input[name="system.CyberWorkType.OptionsAvailable"]').on('change', (ev) => {
       this._onSubmit(ev);
+    });
+
+    html.on("change", "select[name='system.Module.ParentId']", async ev => {
+      await this._cwSet("system.Module.ParentId", String(ev.currentTarget.value || ""));
+    });
+
+    // MODULE: implant replacement
+    html.on("change", "select[name='system.Module.ParentId']", async ev => {
+      const prevId = this.item.system?.Module?.ParentId || "";
+      const newId = String(ev.currentTarget.value || "");
+
+      await this._cwSet("system.Module.ParentId", newId);
+
+      const refresh = (id) => {
+        const it = this.actor?.items?.get(id);
+        if (it?.sheet?.rendered) it.sheet.render(true);
+      };
+      if (prevId && prevId !== newId) refresh(prevId);
+      if (newId) refresh(newId);
+    });
+
+    // MODULE: change “occupies options”
+    html.on("change", "input[name='system.Module.SlotsTaken']", async ev => {
+      const n = Number(ev.currentTarget.value);
+      await this._cwSet("system.Module.SlotsTaken", Number.isFinite(n) ? n : 0);
+
+      const parentId = this.item.system?.Module?.ParentId || "";
+      const parent = parentId ? this.actor?.items?.get(parentId) : null;
+      if (parent?.sheet?.rendered) parent.sheet.render(true);
+    });
+
+    // MODULE: turning off “Module” — freeing up options from the parent
+    html.on("change", "input[name='system.Module.IsModule']", async ev => {
+      const enabled = ev.currentTarget.checked;
+      const prevId = this.item.system?.Module?.ParentId || "";
+      await this._cwSet("system.Module.IsModule", enabled);
+      if (!enabled && prevId) {
+        await this._cwSet("system.Module.ParentId", "");
+        const parent = this.actor?.items?.get(prevId);
+        if (parent?.sheet?.rendered) parent.sheet.render(true);
+      }
+    });
+
+    html.on("change", "select[name='system.cyberwareType']", async ev => {
+      const v = ev.currentTarget.value;
+      let bodyType = "";
+      if (v === "CyberArm") bodyType = "Arm";
+      else if (v === "CyberLeg") bodyType = "Leg";
+      else if (v === "CyberTorso") bodyType = "Torso";
+      else if (v === "CyberAudio" || v === "CyberOptic") bodyType = "Head";
+
+      await this._cwSet("system.CyberBodyType.Type", bodyType);
+      if (bodyType !== "Arm" && bodyType !== "Leg") {
+        await this._cwSet("system.CyberBodyType.Location", "");
+      }
+    });
+
+    // Changing the ChipSkills level
+    html.on("change", "input[name^='system.CyberWorkType.ChipSkills.']", async ev => {
+      const el = ev.currentTarget;
+      const n = Number(el.value);
+      await this._cwSet(el.name, Number.isFinite(n) ? n : 0);
+      await this._cp_syncChipLevelsToSkills();
+      if (typeof this._cp_syncActiveFlagsToSkills === "function") {
+        await this._cp_syncActiveFlagsToSkills();
+      }
+    });
+
+    html.on("change", "input[name='system.CyberWorkType.ChipActive']", async ev => {
+      const checked = !!ev.currentTarget.checked;
+      const prev = !!this.item.system?.CyberWorkType?.ChipActive;
+      if (prev === checked) return;
+
+      await this.item.update({ "system.CyberWorkType.ChipActive": checked }, { render: false });
+
+      if (typeof this._cp_syncChipLevelsToSkills === "function") {
+        await this._cp_syncChipLevelsToSkills();
+      }
+
+      if (typeof this._cp_syncActiveFlagsToSkills === "function") {
+        await this._cp_syncActiveFlagsToSkills();
+      }
+
+      const actor = this.item.actor;
+      if (actor?.sheet?.rendered) actor.sheet.render(true);
+      const affectedNames = Object.keys(this.item.system?.CyberWorkType?.ChipSkills || {});
+      for (const it of (actor?.items ?? [])) {
+        if (it.type !== "skill") continue;
+        if (!affectedNames.includes(it.name)) continue;
+        if (it.sheet?.rendered) it.sheet.render(true);
+      }
+      this.render(true);
+    });
+
+    // SKILL SHEET: enabling/disabling the “chip” for a skill
+    if (this.item.type === "skill") {
+      html.on("change", "input[name='system.isChipped']", async (ev) => {
+        const checked = !!ev.currentTarget.checked;
+        const actor = this.item.actor;
+        const skillName = this.item.name;
+
+        const chips = actor ? actor.items.filter(i =>
+          i.type === "cyberware" &&
+          cwHasType(i, "Chip") &&
+          i.system?.CyberWorkType?.ChipSkills &&
+          Object.prototype.hasOwnProperty.call(i.system.CyberWorkType.ChipSkills, skillName)
+        ) : [];
+
+        if (actor && chips.length) {
+          const chipUpdates = chips.map(ch => ({
+            _id: ch.id,
+            "system.CyberWorkType.ChipActive": checked
+          }));
+          await actor.updateEmbeddedDocuments("Item", chipUpdates, { render: false });
+        }
+
+        if (actor) {
+          await actor.updateEmbeddedDocuments("Item", [
+            { _id: this.item.id, "system.isChipped": checked }
+          ], { render: false });
+        } else {
+          await this.item.update({ "system.isChipped": checked }, { render: false });
+        }
+
+        // If there are no chips, leave the manual chipLevel as it is
+        if (actor && chips.length) {
+          const agg = Math.max(0, ...chips.map(ch => Number(ch.system?.CyberWorkType?.ChipSkills?.[skillName] || 0)));
+          if (Number(this.item.system?.chipLevel || 0) !== agg) {
+            await actor.updateEmbeddedDocuments("Item", [
+              { _id: this.item.id, "system.chipLevel": agg }
+            ], { render: false });
+          }
+        }
+
+        if (actor?.sheet?.rendered) actor.sheet.render(true);
+        for (const ch of chips) if (ch.sheet?.rendered) ch.sheet.render(true);
+        this.render(true);
+      });
+    }
+
+    // SKILL SHEET: changing “Level (with chip)” synchronizes the corresponding level in the chips
+    html.on("change", "input[name='system.chipLevel']", async (ev) => {
+      const actor = this.item.actor;
+      if (!actor) return;
+
+      const skillName = this.item.name;
+      const n = Number(ev.currentTarget.value);
+      const value = Number.isFinite(n) ? n : 0;
+
+      const chips = actor.items.filter(i =>
+        i.type === "cyberware" &&
+        cwHasType(i, "Chip") &&
+        i.system?.CyberWorkType?.ChipSkills &&
+        Object.prototype.hasOwnProperty.call(i.system.CyberWorkType.ChipSkills, skillName)
+      );
+
+      if (!chips.length) return;
+
+      const updates = chips.map(ch => ({
+        _id: ch.id,
+        [`system.CyberWorkType.ChipSkills.${skillName}`]: value
+      }));
+      await actor.updateEmbeddedDocuments("Item", updates, { render: false });
+
+      if (typeof this._cp_syncChipLevelsToSkills === "function") {
+        await this._cp_syncChipLevelsToSkills();
+      }
+
+      if (actor?.sheet?.rendered) actor.sheet.render(true);
+      for (const ch of chips) if (ch.sheet?.rendered) ch.sheet.render(true);
+      this.render(true);
+    });
+
+    // Open/close menu
+    html.on("click", ".cw-ms-trigger", ev => {
+      ev.preventDefault();
+      const root = ev.currentTarget.closest(".cw-ms");
+      if (!root) return;
+      root.classList.toggle("open");
+    });
+
+    // Close on click outside the block
+    html.on("click", ev => {
+      if ($(ev.target).closest(".cw-ms").length) return;
+      html.find(".cw-ms.open").removeClass("open");
+    });
+
+    // Selecting checkboxes within the menu
+    html.on("change", ".cw-ms-menu input[type=checkbox]", async ev => {
+      const root = ev.currentTarget.closest(".cw-ms");
+      if (!root) return;
+
+      const menu = root.querySelector(".cw-ms-menu");
+      let next = Array.from(menu.querySelectorAll("input[type=checkbox]:checked")).map(i => i.value);
+
+      const changed = ev.currentTarget.value;
+      const turnedOn = ev.currentTarget.checked;
+
+      if (changed === "Descriptive" && turnedOn) {
+        next = ["Descriptive"];
+        menu.querySelectorAll("input[type=checkbox]").forEach(i => {
+          i.checked = (i.value === "Descriptive");
+        });
+      } else if (turnedOn) {
+        const desc = menu.querySelector('input[value="Descriptive"]');
+        if (desc) desc.checked = false;
+        next = next.filter(v => v !== "Descriptive");
+      }
+
+      if (!next.length) {
+        next = ["Descriptive"];
+        const desc = menu.querySelector('input[value="Descriptive"]');
+        if (desc) desc.checked = true;
+      }
+
+      await this._cwSet("system.CyberWorkType.Types", next);
     });
   }
 
   /** @override */
   async _updateObject(event, formData) {
     const data = foundry.utils.expandObject(formData);
+
+    if (this.item.type === "cyberware") {
+      const pickLastString = (v) => Array.isArray(v) ? String(v[v.length - 1] ?? "") : String(v ?? "");
+
+      const t = foundry.utils.getProperty(data, "system.cyberwareType");
+      if (t !== undefined) foundry.utils.setProperty(data, "system.cyberwareType", pickLastString(t));
+
+      const ap = foundry.utils.getProperty(data, "system.Module.AllowedParentCyberwareType");
+      if (ap !== undefined) foundry.utils.setProperty(data, "system.Module.AllowedParentCyberwareType", pickLastString(ap));
+
+      const slots = Number(foundry.utils.getProperty(data, "system.Module.SlotsTaken"));
+      if (!Number.isFinite(slots)) foundry.utils.setProperty(data, "system.Module.SlotsTaken", 0);
+    }
+    if (this.item.type === "cyberware") {
+      const pickLastString = (v) => {
+        if (Array.isArray(v)) return v.length ? String(v[v.length - 1] ?? "") : "";
+        return v == null ? "" : String(v);
+      };
+      const t = foundry.utils.getProperty(data, "system.cyberwareType");
+      if (t !== undefined) {
+        foundry.utils.setProperty(data, "system.cyberwareType", pickLastString(t));
+      }
+
+      const ap = foundry.utils.getProperty(data, "system.Module.AllowedParentCyberwareType");
+      if (ap !== undefined) {
+        foundry.utils.setProperty(data, "system.Module.AllowedParentCyberwareType", pickLastString(ap));
+      }
+
+      const slots = foundry.utils.getProperty(data, "system.Module.SlotsTaken");
+      if (slots !== undefined) {
+        const n = Number(slots);
+        foundry.utils.setProperty(data, "system.Module.SlotsTaken", Number.isFinite(n) ? n : 0);
+      }
+    }
 
     if (this.item.type === "skill") {
       const fixNum = v => {
@@ -466,5 +828,71 @@ _prepareCyberware(sheet) {
     }
 
     await this.item.update(data);
+  }
+
+  /**
+   * Collect the chip level aggregate for all of the actor's chip implants
+   * Take the maximum, key = skill name (as on the sheet)
+  */
+  async _cp_syncChipLevelsToSkills() {
+    const actor = this.item.actor;
+    if (!actor) return;
+
+    const chipItems = actor.items.filter(i =>
+      i.type === "cyberware" &&
+      cwHasType(i, "Chip")
+    );
+
+    const agg = {};
+    for (const cw of chipItems) {
+      const map = cw.system?.CyberWorkType?.ChipSkills || {};
+      for (const [name, lvl] of Object.entries(map)) {
+        const n = Number(lvl) || 0;
+        if (n < 0) continue;
+        agg[name] = Math.max(agg[name] ?? 0, n);
+      }
+    }
+
+    const skillItems = actor.items.filter(i => i.type === "skill");
+    const updates = [];
+    for (const s of skillItems) {
+      if (!(s.name in agg)) continue;
+      const want = Number(agg[s.name] || 0);
+      const cur = Number(s.system?.chipLevel || 0);
+      if (want !== cur) {
+        updates.push({ _id: s.id, "system.chipLevel": want });
+      }
+    }
+    if (updates.length) await actor.updateEmbeddedDocuments("Item", updates);
+  }
+  /**
+   * Set system.isChipped for skills based on all active chips of the actor
+   * true — if there is at least one active chip for the skill that grants this skill
+   * false — if there are no active chips for the skill
+  */
+  async _cp_syncActiveFlagsToSkills() {
+    const actor = this.item.actor;
+    if (!actor) return;
+
+    const activeChips = actor.items.filter(i =>
+      i.type === "cyberware" &&
+      cwHasType(i, "Chip") &&
+      !!i.system?.CyberWorkType?.ChipActive
+    );
+
+    const activeMap = {};
+    for (const ch of activeChips) {
+      const skills = ch.system?.CyberWorkType?.ChipSkills || {};
+      for (const name of Object.keys(skills)) activeMap[name] = true;
+    }
+
+    const skills = actor.items.filter(i => i.type === "skill");
+    const updates = [];
+    for (const s of skills) {
+      const want = !!activeMap[s.name];
+      const cur = !!(s.system?.isChipped);
+      if (want !== cur) updates.push({ _id: s.id, "system.isChipped": want });
+    }
+    if (updates.length) await actor.updateEmbeddedDocuments("Item", updates, { render: false });
   }
 }

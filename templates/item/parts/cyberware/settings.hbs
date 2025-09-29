@@ -1,8 +1,6 @@
 {{!-- templates/item/parts/cyberware/settings.hbs --}}
 
 <div class="field-list">
-  {{> (template "fields/select") label="CyberwareType" edit="system.cyberwareType" choices=cw.cyberwareTypeOptions noTranslateChoices=true}}
-  {{> (template "fields/string") label="CyberwareSubtype" edit="system.cyberwareSubtype"}}
   {{> (template "fields/string") label="SurgeryCode" edit="system.surgCode"}}
 
   <div class="field">
@@ -16,7 +14,17 @@
   {{> (template "fields/string") label="Abbrev" edit="system.abbrev"}}
 
   {{!-- Module toggle --}}
-  {{> (template "fields/boolean") label="CWT_IsModule" edit="system.Module.IsModule"}}
+  {{> (template "fields/boolean") label="CWT_IsModule" edit="system.Module.IsModule"}}  
+  <div class="field">
+    <label>{{CPLocal "CWT_Install_MountZone"}}</label>
+    <span class="flex-pad"></span>
+    <select name="system.MountZone">
+      <option value=""></option>
+      {{#each cw.bodyZones as |b|}}
+        <option value="{{b.key}}" {{#if (equals ../system.MountZone b.key)}}selected{{/if}}>{{b.label}}</option>
+      {{/each}}
+    </select>
+  </div>
 </div>
 
 {{!-- Module block (outside of CyberWorkType) --}}
@@ -30,12 +38,17 @@
   {{> (template "fields/number") label="CWT_Module_SlotsTaken" edit="system.Module.SlotsTaken"}}
 
   <div class="field">
-    <label>{{CPLocal "CWT_Module_MountZone"}}</label>
+    <label>{{CPLocal "CWT_Module_ParentImplant"}}</label>
     <span class="flex-pad"></span>
-    <select name="system.Module.MountZone">
+    <select name="system.Module.ParentId">
       <option value=""></option>
-      {{#each cw.bodyZones as |b|}}
-        <option value="{{b.key}}" {{#if (equals ../system.Module.MountZone b.key)}}selected{{/if}}>{{b.label}}</option>
+      {{#each cw.parentImplants as |p|}}
+        <option
+          value="{{p.id}}"
+          title="{{CPLocal 'CWT_AvailSlotsFull'}}: {{p.left}}"
+          {{#if (equals ../system.Module.ParentId p.id)}}selected{{/if}}>
+          {{p.name}}. {{CPLocal "CWT_AvailSlotsShort"}}: {{p.left}}
+        </option>
       {{/each}}
     </select>
   </div>
@@ -44,9 +57,15 @@
     <label>{{CPLocal "CWT_Implant_ModuleAllowedParentCWType"}}</label>
     <span class="flex-pad"></span>
     <select name="system.Module.AllowedParentCyberwareType">
-      <option value=""></option>
-      {{#each cw.parentCwTypeOptions as |o|}}
-        <option value="{{o.key}}" {{#if (equals ../system.Module.AllowedParentCyberwareType o.key)}}selected{{/if}}>{{o.label}}</option>
+      {{#each cw.parentCwTypeChoices as |ch|}}
+        <option value="{{ch.value}}"
+          {{#if (equals ../system.Module.AllowedParentCyberwareType ch.value)}}selected{{/if}}>
+          {{#if (equals ch.localKey ch.value)}}
+            {{ch.value}}
+          {{else}}
+            {{CPLocal ch.localKey}}
+          {{/if}}
+        </option>
       {{/each}}
     </select>
   </div>
@@ -55,57 +74,63 @@
 
 <div class="field-list">
   <div class="field span-two-cells">
-    <label class="larger">{{CPLocal "CyberBodyType"}}</label>
-    <span class="flex-pad"></span>
-  </div>
-
-  <div class="field">
-    <label for="system.CyberBodyType.Type">{{CPLocal "CyberBodyTypeType"}}</label>
-    <span class="flex-pad"></span>
-    <select name="system.CyberBodyType.Type">
-      <option value="" {{#if (equals system.CyberBodyType.Type "")}}selected{{/if}}></option>
-      <option value="Head" {{#if (equals system.CyberBodyType.Type "Head")}}selected{{/if}}>{{CPLocal "Head"}}</option>
-      <option value="Torso" {{#if (equals system.CyberBodyType.Type "Torso")}}selected{{/if}}>{{CPLocal "Torso"}}</option>
-      <option value="Arm" {{#if (equals system.CyberBodyType.Type "Arm")}}selected{{/if}}>{{CPLocal "Arm"}}</option>
-      <option value="Leg" {{#if (equals system.CyberBodyType.Type "Leg")}}selected{{/if}}>{{CPLocal "Leg"}}</option>
-      <option value="Nervous" {{#if (equals system.CyberBodyType.Type "Nervous")}}selected{{/if}}>{{CPLocal "Nervous"}}</option>
-    </select>
-  </div>
-
-  {{#if (or (equals system.CyberBodyType.Type "Arm") (equals system.CyberBodyType.Type "Leg"))}}
-    <div class="field">
-      <label for="system.CyberBodyType.Location">{{CPLocal "CyberBodyTypeLocation"}}</label>
-      <span class="flex-pad"></span>
-      <select name="system.CyberBodyType.Location">
-        <option value="" {{#if (equals system.CyberBodyType.Location "")}}selected{{/if}}></option>
-        <option value="Left" {{#if (equals system.CyberBodyType.Location "Left")}}selected{{/if}}>{{CPLocal "Left"}}</option>
-        <option value="Right" {{#if (equals system.CyberBodyType.Location "Right")}}selected{{/if}}>{{CPLocal "Right"}}</option>
-      </select>
-    </div>
-  {{/if}}
-</div>
-
-<div class="field-list">
-  <div class="field span-two-cells">
     <label class="larger">{{CPLocal "CyberWorkType"}}</label>
     <span class="flex-pad"></span>
   </div>
 
-  <div class="field">
-    <label for="system.CyberWorkType.Type">{{CPLocal "CyberWorkTypeType"}}</label>
-    <span class="flex-pad"></span>
-    <select name="system.CyberWorkType.Type">
-      <option value="Descriptive" {{#if (equals system.CyberWorkType.Type "Descriptive")}}selected{{/if}}>{{CPLocal "CWT_Type_Descriptive"}}</option>
-      <option value="Characteristic" {{#if (equals system.CyberWorkType.Type "Characteristic")}}selected{{/if}}>{{CPLocal "CWT_Type_Characteristic"}}</option>
-      <option value="Armor" {{#if (equals system.CyberWorkType.Type "Armor")}}selected{{/if}}>{{CPLocal "CWT_Type_Armor"}}</option>
-      <option value="Weapon" {{#if (equals system.CyberWorkType.Type "Weapon")}}selected{{/if}}>{{CPLocal "CWT_Type_Weapon"}}</option>
-      <option value="Implant" {{#if (equals system.CyberWorkType.Type "Implant")}}selected{{/if}}>{{CPLocal "CWT_Type_Implant"}}</option>
-      <option value="Chip" {{#if (equals system.CyberWorkType.Type "Chip")}}selected{{/if}}>{{CPLocal "CWT_Type_Chip"}}</option>
-    </select>
+<div class="field">
+  <label>{{CPLocal "CyberWorkTypeType"}}</label>
+  <span class="flex-pad"></span>
+
+  <div class="cw-ms" data-path="system.CyberWorkType.Types">
+    <button type="button" class="cw-ms-trigger">
+      <span class="cw-ms-labels">
+        {{#if cw.typeLabels.length}}
+          {{#each cw.typeLabels}}{{this}}{{#unless @last}}, {{/unless}}{{/each}}
+        {{else}}
+          {{CPLocal "CWT_Type_Descriptive"}}
+        {{/if}}
+      </span>
+      <i class="fa-solid fa-caret-down cw-ms-caret"></i>
+    </button>
+
+    <div class="cw-ms-menu">
+      <label class="cw-ms-opt">
+        <input type="checkbox" value="Descriptive"
+               {{#if (cwHasType system.CyberWorkType "Descriptive")}}checked{{/if}}>
+        {{CPLocal "CWT_Type_Descriptive"}}
+      </label>
+      <label class="cw-ms-opt">
+        <input type="checkbox" value="Characteristic"
+               {{#if (cwHasType system.CyberWorkType "Characteristic")}}checked{{/if}}>
+        {{CPLocal "CWT_Type_Characteristic"}}
+      </label>
+      <label class="cw-ms-opt">
+        <input type="checkbox" value="Armor"
+               {{#if (cwHasType system.CyberWorkType "Armor")}}checked{{/if}}>
+        {{CPLocal "CWT_Type_Armor"}}
+      </label>
+      <label class="cw-ms-opt">
+        <input type="checkbox" value="Weapon"
+               {{#if (cwHasType system.CyberWorkType "Weapon")}}checked{{/if}}>
+        {{CPLocal "CWT_Type_Weapon"}}
+      </label>
+      <label class="cw-ms-opt">
+        <input type="checkbox" value="Implant"
+               {{#if (cwHasType system.CyberWorkType "Implant")}}checked{{/if}}>
+        {{CPLocal "CWT_Type_Implant"}}
+      </label>
+      <label class="cw-ms-opt">
+        <input type="checkbox" value="Chip"
+               {{#if (cwHasType system.CyberWorkType "Chip")}}checked{{/if}}>
+        {{CPLocal "CWT_Type_Chip"}}
+      </label>
+    </div>
   </div>
+</div>
 
   {{!-- ===== Characteristic ===== --}}
-  {{#if (equals system.CyberWorkType.Type "Characteristic")}}
+  {{#if (cwHasType system.CyberWorkType "Characteristic")}}
     <div class="field span-two-cells">
       <label class="larger">{{CPLocal "CWT_AddStat"}}</label>
       <span class="flex-pad"></span>
@@ -191,7 +216,7 @@
   {{/if}}
 
   {{!-- ===== Armor ===== --}}
-  {{#if (equals system.CyberWorkType.Type "Armor")}}
+  {{#if (cwHasType system.CyberWorkType "Armor")}}
     <div class="field span-two-cells">
       <label class="larger">{{CPLocal "ArmorLocations"}}</label>
       <span class="flex-pad"></span>
@@ -249,7 +274,7 @@
   {{/if}}
 
   {{!-- ===== Weapon ===== --}}
-  {{#if (equals system.CyberWorkType.Type "Weapon")}}
+  {{#if (cwHasType system.CyberWorkType "Weapon")}}
     <div class="field span-two-cells">
       <div class="field-list cw-weapon-grid">
         {{> (template "fields/select") label="WeaponType" edit="system.CyberWorkType.Weapon.weaponType" choices=weaponTypes}}
@@ -290,7 +315,7 @@
   {{/if}}
 
   {{!-- ===== Implant ===== --}}
-  {{#if (equals system.CyberWorkType.Type "Implant")}}
+  {{#if (cwHasType system.CyberWorkType "Implant")}}
     {{> (template "fields/number") label="CWT_Implant_OptionsAvailable" edit="system.CyberWorkType.OptionsAvailable"}}
 
     <div class="field">
@@ -302,19 +327,56 @@
     {{> (template "fields/number") label="CWT_Implant_SDP" edit="system.CyberWorkType.SDP"}}
 
     <div class="field">
-      <label>{{CPLocal "CWT_Implant_MountPolicy"}}</label>
+      <label>{{CPLocal "CWT_Implant_ImplantType"}}</label>
       <span class="flex-pad"></span>
-      <select name="system.CyberWorkType.MountPolicy">
-        <option value=""></option>
-        {{#each cw.bodyZones as |b|}}
-          <option value="{{b.key}}" {{#if (equals ../system.CyberWorkType.MountPolicy b.key)}}selected{{/if}}>{{b.label}}</option>
+      <select name="system.cyberwareType">
+        {{#each cw.parentCwTypeChoices as |ch|}}
+          <option value="{{ch.value}}"
+            {{#if (equals ../system.cyberwareType ch.value)}}selected{{/if}}>
+            {{#if (equals ch.localKey ch.value)}}
+              {{ch.value}}
+            {{else}}
+              {{CPLocal ch.localKey}}
+            {{/if}}
+          </option>
         {{/each}}
       </select>
     </div>
+    {{#if (equals system.cyberwareType "CyberArm")}}
+      <div class="field">
+        <label>{{CPLocal "CyberBodyTypeLocation"}}</label>
+        <span class="flex-pad"></span>
+        <select name="system.CyberBodyType.Location">
+          <option value=""></option>
+          <option value="Left"  {{#if (equals system.CyberBodyType.Location "Left")}}selected{{/if}}>{{CPLocal "Left"}}</option>
+          <option value="Right" {{#if (equals system.CyberBodyType.Location "Right")}}selected{{/if}}>{{CPLocal "Right"}}</option>
+        </select>
+      </div>
+    {{else}}
+      {{#if (equals system.cyberwareType "CyberLeg")}}
+        <div class="field">
+          <label>{{CPLocal "CyberBodyTypeLocation"}}</label>
+          <span class="flex-pad"></span>
+          <select name="system.CyberBodyType.Location">
+            <option value=""></option>
+            <option value="Left"  {{#if (equals system.CyberBodyType.Location "Left")}}selected{{/if}}>{{CPLocal "Left"}}</option>
+            <option value="Right" {{#if (equals system.CyberBodyType.Location "Right")}}selected{{/if}}>{{CPLocal "Right"}}</option>
+          </select>
+        </div>
+      {{/if}}
+    {{/if}}
   {{/if}}
 
+  {{!-- ===== Chip: activation toggle ===== --}}
+  {{#if (cwHasType system.CyberWorkType "Chip")}}
+    <div class="field">
+      <label>{{CPLocal "CWT_Chip_Active"}}</label>
+      <span class="flex-pad"></span>
+      <input type="checkbox" name="system.CyberWorkType.ChipActive" {{checked system.CyberWorkType.ChipActive}}/>
+    </div>
+  {{/if}}
   {{!-- ===== Chip ===== --}}
-  {{#if (equals system.CyberWorkType.Type "Chip")}}
+  {{#if (cwHasType system.CyberWorkType "Chip")}}
     {{#if cw.hasActor}}
       <div class="field">
         <label>{{CPLocal "CWT_AddChipSkill"}}</label>

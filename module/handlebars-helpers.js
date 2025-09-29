@@ -30,6 +30,10 @@ export function registerHandlebarsHelpers() {
     Handlebars.registerHelper('equals', function(x, y) {
         return x === y;
     });
+    Handlebars.registerHelper('cwHasType', function(cwt, type) {
+    const types = Array.isArray(cwt?.Types) ? cwt.Types : [];
+    return types.includes(type) || cwt?.Type === type;
+    });
     Handlebars.registerHelper('compare', function(x, operator, y) {
         switch (operator) {
             case "===":

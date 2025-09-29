@@ -124,3 +124,14 @@ export async function getDefaultSkills() {
     // Return the package content
     return content;
 }
+
+// Checking implant mechanics
+// Accepts: the Item document itself, its system, or directly the CyberWorkType object
+export function cwHasType(obj, type) {
+  const cwt =
+    obj?.system?.CyberWorkType ??
+    obj?.CyberWorkType ??
+    obj;
+  const types = Array.isArray(cwt?.Types) ? cwt.Types : [];
+  return types.includes(type) || cwt?.Type === type;
+}

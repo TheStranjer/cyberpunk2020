@@ -1,7 +1,7 @@
 import { makeD10Roll, Multiroll } from "../dice.js";
 import { SortOrders, sortSkills } from "./skill-sort.js";
 import { btmFromBT } from "../lookups.js";
-import { properCase, localize, getDefaultSkills } from "../utils.js"
+import { properCase, localize, getDefaultSkills, cwHasType } from "../utils.js"
 
 /**
  * Extend the base Actor document by defining a custom roll data structure which is ideal for the Simple system.
@@ -84,11 +84,56 @@ export class CyberpunkActor extends Actor {
       return item.system.equipped;
     });
 
+    // SDP per zone (implants + modules)
+    system.sdp = system.sdp || {};
+    system.sdp.sum = { Head:0, Torso:0, lArm:0, rArm:0, lLeg:0, rLeg:0 };
+    system.sdp.current = system.sdp.current || { Head:0, Torso:0, lArm:0, rArm:0, lLeg:0, rLeg:0 };
+
+    const ZONES = ["Head","Torso","lArm","rArm","lLeg","rLeg"];
+    const addSdp = (zoneKey, amount) => {
+      const n = Number(amount) || 0;
+      if (!n) return;
+      if (!ZONES.includes(zoneKey)) return;
+      system.sdp.sum[zoneKey] += n;
+    };
+
+    const allItems = this.items.contents || [];
+    const byId = new Map(allItems.map(i => [i.id, i]));
+    const eqCyber = (equippedItems || []).filter(i => i.type === "cyberware");
+
+    for (const it of eqCyber) {
+      const sdp = Number(it.system?.CyberWorkType?.SDP) || 0;
+      if (sdp <= 0) continue;
+
+      const mz = it.system?.MountZone || "";
+      if (mz === "Head") addSdp("Head", sdp);
+      else if (mz === "Torso") addSdp("Torso", sdp);
+      else if (mz === "Arm" || mz === "Leg") {
+        // Define the side: for the implant — from it; for the module — from the parent
+        let side = it.system?.CyberBodyType?.Location || "";
+        if ((!side || side === "") && it.system?.Module?.IsModule) {
+          const pid = it.system?.Module?.ParentId;
+          const parent = pid ? byId.get(pid) : null;
+          side = parent?.system?.CyberBodyType?.Location || "";
+        }
+        if (side === "Left")  addSdp(mz === "Arm" ? "lArm" : "lLeg", sdp);
+        if (side === "Right") addSdp(mz === "Arm" ? "rArm" : "rLeg", sdp);
+      }
+      // MountZone “Nervous” is not taken into account in armored zones
+    }
+
+    // By default, “current” = “sum” if current is not yet specified
+    for (const z of ZONES) {
+      if (system.sdp.current[z] == null) {
+        system.sdp.current[z] = system.sdp.sum[z];
+      }
+    }
+
     // Cyberware (Characteristic): apply stat bonuses
     Object.values(stats).forEach(s => { s.cyberMod = 0; });
 
-    const charCw = equippedItems
-      .filter(i => i.type === "cyberware" && i.system?.CyberWorkType?.Type === "Characteristic");
+    const charCw = (equippedItems || [])
+      .filter(i => i.type === "cyberware" && cwHasType(i, "Characteristic"));
 
     for (const cw of charCw) {
       const add = cw.system?.CyberWorkType?.Stat || {};
@@ -127,7 +172,7 @@ export class CyberpunkActor extends Actor {
 
     // Equipped cyber-armor implants (once)
     const cwArmorItems = (equippedItems || [])
-      .filter(i => i.type === "cyberware" && i.system?.CyberWorkType?.Type === "Armor");
+      .filter(i => i.type === "cyberware" && cwHasType(i, "Armor"));
 
     // Inventory armor: accumulate EV and layer SP
     equippedItems.filter(i => i.type === "armor").forEach(armor => {
@@ -209,6 +254,44 @@ export class CyberpunkActor extends Actor {
     else if(woundState == 2) {
       woundStat(stats.ref, total => total - 2);
     }
+
+    // SDP: current follows sum only when sum itself has changed
+    {
+      const ZONES = ["Head","Torso","lArm","rArm","lLeg","rLeg"];
+      system.sdp = system.sdp || {};
+      system.sdp.sum = system.sdp.sum || { Head:0, Torso:0, lArm:0, rArm:0, lLeg:0, rLeg:0 };
+      system.sdp.current = system.sdp.current || { Head:0, Torso:0, lArm:0, rArm:0, lLeg:0, rLeg:0 };
+      system.sdp._lastSum = system.sdp._lastSum || {};
+
+      for (const z of ZONES) {
+        const sumNow = Number(system.sdp.sum?.[z] || 0);
+        const lastSum = system.sdp._lastSum[z];
+
+        if (lastSum === undefined) {
+          // First calculation pass for zone z
+          // Rules:
+          // If current is empty OR equal to 0 (default start sheet), set current = sumNow
+          // If the player has already entered a non-zero value (e.g., 18), do not overwrite it
+          const curRaw = system.sdp.current?.[z];
+          const curNum = Number(curRaw);
+
+          if (curRaw == null || Number.isNaN(curNum) || curNum === 0) {
+            system.sdp.current[z] = sumNow;
+          }
+          system.sdp._lastSum[z] = sumNow;
+        }
+        else if (lastSum !== sumNow) {
+          // Amount changed (implant/module installed/removed) — resynchronize current
+          system.sdp.current[z] = sumNow;
+          system.sdp._lastSum[z] = sumNow;
+        }
+        else {
+          // The amount has not changed — leave current alone (keep the player's manual entry)
+          if (system.sdp.current[z] == null) system.sdp.current[z] = sumNow;
+        }
+      }
+    }
+
     // calculate humanity & EMP (include cyberware and temp mods before loss)
     const emp = stats.emp;
 
@@ -234,6 +317,32 @@ export class CyberpunkActor extends Actor {
     const cwCheckMods = this._getCharacteristicChecksMods();
     system.initiativeImplantMod = Number(cwCheckMods.initiative || 0);
     system._cwChecks = { saveStun: Number(cwCheckMods.saveStun || 0) };
+
+    // CHIPS: only active ones, auto-switching skills to chip level
+    const activeChipware = (eqCyber || []).filter(i =>
+      cwHasType(i, "Chip") && !!i.system?.CyberWorkType?.ChipActive
+    );
+
+    // { “Skill Name”: maximum level among active chips }
+    const chipMap = {};
+    for (const cw of activeChipware) {
+      const skills = cw.system?.CyberWorkType?.ChipSkills || {};
+      for (const [skName, lvl] of Object.entries(skills)) {
+        const n = Number(lvl) || 0;
+        if (!n) continue;
+        chipMap[skName] = Math.max(chipMap[skName] ?? 0, n);
+      }
+    }
+    const skillItems = this.items.contents.filter(i => i.type === "skill");
+    for (const si of skillItems) si.system.autoChipped = false;
+
+    for (const si of skillItems) {
+      const chipLvl = chipMap[si.name];
+      if (!chipLvl) continue;
+      si.system.chipLevel = chipLvl;
+      si.system.isChipped = true;
+      si.system.autoChipped = true;
+    }
   }
 
   /**
@@ -295,7 +404,8 @@ export class CyberpunkActor extends Actor {
     if (!skill) return 0;
     const data = skill.system ?? skill;
     let value = Number(data.level) || 0;
-    if (data.isChipped) value = Number(data.chipLevel) || 0;
+    const chipActive = !!(data.isChipped || data.autoChipped);
+    if (chipActive) value = Number(data.chipLevel) || 0;
     return value;
   }
 
@@ -349,7 +459,7 @@ export class CyberpunkActor extends Actor {
     const cMod = this._getCharacteristicSkillMod(skill.name);
     if (cMod) parts.push(cMod);
 
-    const makeRoll = () => makeD10Roll(parts, this.system);   // d10 + parts
+    const makeRoll = () => makeD10Roll(parts, this.system); // d10 + parts
 
     // if both are accidentally marked — ignore
     if (advantage && disadvantage) { advantage = disadvantage = false; }
@@ -364,8 +474,8 @@ export class CyberpunkActor extends Actor {
         r2.evaluate()
       ]).then(() => {
         const chosen = advantage
-          ? (r1.total >= r2.total ? r1 : r2)   // best
-          : (r1.total <= r2.total ? r1 : r2);  // worst
+          ? (r1.total >= r2.total ? r1 : r2) // best
+          : (r1.total <= r2.total ? r1 : r2); // worst
 
         new Multiroll(skill.name)
           .addRoll(chosen)
@@ -396,7 +506,7 @@ export class CyberpunkActor extends Actor {
       if (!sys?.equipped) continue;
 
       const cwt = sys.CyberWorkType;
-      if (!cwt || cwt.Type !== "Characteristic") continue;
+      if (!cwt || !cwHasType(cwt, "Characteristic")) continue;
 
       const table = cwt.Skill || {};
       const v = Number(table[skillName]) || 0;
@@ -417,7 +527,7 @@ export class CyberpunkActor extends Actor {
       if (it.type !== "cyberware") continue;
       const sys = it.system || {};
       if (!sys.equipped) continue;
-      if (sys?.CyberWorkType?.Type !== "Characteristic") continue;
+      if (!cwHasType(sys, "Characteristic")) continue;
 
       const checks = sys.CyberWorkType?.Checks || {};
       mods.initiative += Number(checks.Initiative || 0) || 0;
@@ -492,5 +602,23 @@ export class CyberpunkActor extends Actor {
       name: "Death Threshold"
     });
     rolls.defaultExecute();
+  }
+
+  async _preUpdate(changes, options, user) {
+    // If the actor's portrait changes and no explicit image change is specified for the prototype token
+    // synchronize it, but only if the token currently shows the actor's old portrait
+    const newImg = changes?.img;
+    if (typeof newImg === "string" && newImg.trim() &&
+        !foundry.utils.getProperty(changes, "prototypeToken.texture.src")) {
+
+      const oldImg = this._source?.img ?? this.img;
+      const currentTokenSrc = this.prototypeToken?.texture?.src;
+
+      if (!currentTokenSrc || currentTokenSrc === oldImg) {
+        foundry.utils.setProperty(changes, "prototypeToken.texture.src", newImg);
+      }
+    }
+
+    return await super._preUpdate(changes, options, user);
   }
 }
