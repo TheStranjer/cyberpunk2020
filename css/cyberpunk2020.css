@@ -942,6 +942,19 @@ div.statderive .value.rightborder {
   padding: 0 6px;
   box-sizing: border-box;
 }
+/* --- Weapon sheet: make selects shrink properly --- */
+.cyberpunk .field select[name="system.reliability"],
+.cyberpunk .field select[name="system.weaponType"],
+.cyberpunk .field select[name="system.attackType"],
+.cyberpunk .field select[name="system.attackSkill"],
+.cyberpunk .field select[name="system.concealability"],
+.cyberpunk .field select[name="system.availability"] {
+  min-width: 0;
+  max-width: 100%;
+  width: 100%;
+  box-sizing: border-box;
+}
+.cyberpunk .field .flex-pad { min-width: 0; }
 
 /* The cleanup button in the skill search */
 .field.skill-search-field { position: relative; }
