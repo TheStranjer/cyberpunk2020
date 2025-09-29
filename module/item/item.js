@@ -34,7 +34,7 @@ export class CyberpunkItem extends Item {
       return await this.update({[`system.${field}`]: value});
     }
     const cwt = this.system?.CyberWorkType;
-    if (this.type === "cyberware" && cwt?.Type === "Weapon") {
+    if (this.type === "cyberware" && cwHasType(this, "Weapon")) {
       return await this.update({[`system.CyberWorkType.Weapon.${field}`]: value});
     }
     return null;
