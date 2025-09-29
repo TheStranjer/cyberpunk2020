@@ -603,4 +603,22 @@ export class CyberpunkActor extends Actor {
     });
     rolls.defaultExecute();
   }
+
+  async _preUpdate(changes, options, user) {
+    // If the actor's portrait changes and no explicit image change is specified for the prototype token
+    // synchronize it, but only if the token currently shows the actor's old portrait
+    const newImg = changes?.img;
+    if (typeof newImg === "string" && newImg.trim() &&
+        !foundry.utils.getProperty(changes, "prototypeToken.texture.src")) {
+
+      const oldImg = this._source?.img ?? this.img;
+      const currentTokenSrc = this.prototypeToken?.texture?.src;
+
+      if (!currentTokenSrc || currentTokenSrc === oldImg) {
+        foundry.utils.setProperty(changes, "prototypeToken.texture.src", newImg);
+      }
+    }
+
+    return await super._preUpdate(changes, options, user);
+  }
 }
