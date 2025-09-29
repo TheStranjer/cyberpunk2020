@@ -25,7 +25,7 @@ export class CyberpunkItem extends Item {
   _getWeaponSystem() {
     if (this.type === "weapon") return this.system;
     const cwt = this.system?.CyberWorkType;
-    if (this.type === "cyberware" && cwt?.Type === "Weapon") return cwt.Weapon || {};
+    if (this.type === "cyberware" && cwHasType(cwt, "Weapon")) return cwt.Weapon || {};
     return this.system;
   }
 
@@ -259,7 +259,7 @@ export class CyberpunkItem extends Item {
   }
 
   __getFireModes() {
-    const isWeaponDoc = this.type === "weapon" || (this.type === "cyberware" && this.system?.CyberWorkType?.Type === "Weapon");
+    const isWeaponDoc = this.type === "weapon" || (this.type === "cyberware" && cwHasType(this, "Weapon"));
     if (!isWeaponDoc) {
       console.error(`${this.name} is not a weapon, and therefore has no fire modes`);
       return [];

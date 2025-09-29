@@ -657,7 +657,7 @@ _prepareCyberware(sheet) {
 
         const chips = actor ? actor.items.filter(i =>
           i.type === "cyberware" &&
-          i.system?.CyberWorkType?.Type === "Chip" &&
+          cwHasType(i, "Chip") &&
           i.system?.CyberWorkType?.ChipSkills &&
           Object.prototype.hasOwnProperty.call(i.system.CyberWorkType.ChipSkills, skillName)
         ) : [];
@@ -678,11 +678,9 @@ _prepareCyberware(sheet) {
           await this.item.update({ "system.isChipped": checked }, { render: false });
         }
 
-        if (actor) {
-          const agg = chips.length
-            ? Math.max(0, ...chips.map(ch => Number(ch.system?.CyberWorkType?.ChipSkills?.[skillName] || 0)))
-            : 0;
-
+        // If there are no chips, leave the manual chipLevel as it is
+        if (actor && chips.length) {
+          const agg = Math.max(0, ...chips.map(ch => Number(ch.system?.CyberWorkType?.ChipSkills?.[skillName] || 0)));
           if (Number(this.item.system?.chipLevel || 0) !== agg) {
             await actor.updateEmbeddedDocuments("Item", [
               { _id: this.item.id, "system.chipLevel": agg }
@@ -695,6 +693,39 @@ _prepareCyberware(sheet) {
         this.render(true);
       });
     }
+
+    // SKILL SHEET: changing “Level (with chip)” synchronizes the corresponding level in the chips
+    html.on("change", "input[name='system.chipLevel']", async (ev) => {
+      const actor = this.item.actor;
+      if (!actor) return;
+
+      const skillName = this.item.name;
+      const n = Number(ev.currentTarget.value);
+      const value = Number.isFinite(n) ? n : 0;
+
+      const chips = actor.items.filter(i =>
+        i.type === "cyberware" &&
+        cwHasType(i, "Chip") &&
+        i.system?.CyberWorkType?.ChipSkills &&
+        Object.prototype.hasOwnProperty.call(i.system.CyberWorkType.ChipSkills, skillName)
+      );
+
+      if (!chips.length) return;
+
+      const updates = chips.map(ch => ({
+        _id: ch.id,
+        [`system.CyberWorkType.ChipSkills.${skillName}`]: value
+      }));
+      await actor.updateEmbeddedDocuments("Item", updates, { render: false });
+
+      if (typeof this._cp_syncChipLevelsToSkills === "function") {
+        await this._cp_syncChipLevelsToSkills();
+      }
+
+      if (actor?.sheet?.rendered) actor.sheet.render(true);
+      for (const ch of chips) if (ch.sheet?.rendered) ch.sheet.render(true);
+      this.render(true);
+    });
 
     // Open/close menu
     html.on("click", ".cw-ms-trigger", ev => {
@@ -808,7 +839,7 @@ _prepareCyberware(sheet) {
 
     const chipItems = actor.items.filter(i =>
       i.type === "cyberware" &&
-      i.system?.CyberWorkType?.Type === "Chip"
+      cwHasType(i, "Chip")
     );
 
     const agg = {};
@@ -824,6 +855,7 @@ _prepareCyberware(sheet) {
     const skillItems = actor.items.filter(i => i.type === "skill");
     const updates = [];
     for (const s of skillItems) {
+      if (!(s.name in agg)) continue;
       const want = Number(agg[s.name] || 0);
       const cur = Number(s.system?.chipLevel || 0);
       if (want !== cur) {
@@ -843,7 +875,7 @@ _prepareCyberware(sheet) {
 
     const activeChips = actor.items.filter(i =>
       i.type === "cyberware" &&
-      i.system?.CyberWorkType?.Type === "Chip" &&
+      cwHasType(i, "Chip") &&
       !!i.system?.CyberWorkType?.ChipActive
     );
 

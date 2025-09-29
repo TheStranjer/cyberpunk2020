@@ -132,8 +132,8 @@ export class CyberpunkActor extends Actor {
     // Cyberware (Characteristic): apply stat bonuses
     Object.values(stats).forEach(s => { s.cyberMod = 0; });
 
-    const charCw = equippedItems
-      .filter(i => i.type === "cyberware" && i.system?.CyberWorkType?.Type === "Characteristic");
+    const charCw = (equippedItems || [])
+      .filter(i => i.type === "cyberware" && cwHasType(i, "Characteristic"));
 
     for (const cw of charCw) {
       const add = cw.system?.CyberWorkType?.Stat || {};

@@ -1,5 +1,5 @@
 import { martialOptions, meleeAttackTypes, meleeBonkOptions, rangedModifiers, weaponTypes } from "../lookups.js"
-import { localize, localizeParam } from "../utils.js"
+import { localize, localizeParam, cwHasType } from "../utils.js"
 import { ModifiersDialog } from "../dialog/modifiers.js"
 import { SortOrders } from "./skill-sort.js";
 
@@ -250,13 +250,43 @@ export class CyberpunkActorSheet extends ActorSheet {
     // Toggle skill chipped
     html.find(".chip-toggle").click(async ev => {
       const skill = this.actor.items.get(ev.currentTarget.dataset.skillId);
+      if (!skill) return;
       const toggled = !skill.system.isChipped;
+      const skillName = skill.name;
+
+      // Search for all chips that affect this skill
+      const chips = this.actor.items.filter(i =>
+        i.type === "cyberware" &&
+        cwHasType(i, "Chip") &&
+        i.system?.CyberWorkType?.ChipSkills &&
+        Object.prototype.hasOwnProperty.call(i.system.CyberWorkType.ChipSkills, skillName)
+      );
+
+      if (chips.length) {
+        const chipUpdates = chips.map(ch => ({
+          _id: ch.id,
+          "system.CyberWorkType.ChipActive": toggled
+        }));
+        await this.actor.updateEmbeddedDocuments("Item", chipUpdates, { render: false });
+      }
 
       await this.actor.updateEmbeddedDocuments("Item", [{
         _id: skill.id,
         "system.isChipped": toggled,
         "system.-=chipped": null
-      }]);
+      }], { render: false });
+
+      // If there are no chips, leave the manual chipLevel unchanged
+      if (chips.length) {
+        const agg = Math.max(0, ...chips.map(ch => Number(ch.system?.CyberWorkType?.ChipSkills?.[skillName] || 0)));
+        if (Number(skill.system?.chipLevel || 0) !== agg) {
+          await this.actor.updateEmbeddedDocuments("Item", [
+            { _id: skill.id, "system.chipLevel": agg }
+          ], { render: false });
+        }
+      }
+
+      if (this.rendered) this.render(true);
     });
     
     // Skill sorting
@@ -597,7 +627,7 @@ export class CyberpunkActorSheet extends ActorSheet {
 
       const chips = this.actor.items.filter(i =>
         i.type === "cyberware" &&
-        i.system?.CyberWorkType?.Type === "Chip" &&
+        cwHasType(i, "Chip") &&
         i.system?.CyberWorkType?.ChipSkills &&
         Object.prototype.hasOwnProperty.call(i.system.CyberWorkType.ChipSkills, skillName)
       );
@@ -610,14 +640,13 @@ export class CyberpunkActorSheet extends ActorSheet {
         await this.actor.updateEmbeddedDocuments("Item", updates, { render: false });
       }
 
-      const agg = chips.length
-        ? Math.max(0, ...chips.map(ch => Number(ch.system?.CyberWorkType?.ChipSkills?.[skillName] || 0)))
-        : 0;
-
-      if (Number(skill.system?.chipLevel || 0) !== agg) {
-        await this.actor.updateEmbeddedDocuments("Item", [
-          { _id: skill.id, "system.chipLevel": agg }
-        ], { render: false });
+      if (chips.length) {
+        const agg = Math.max(0, ...chips.map(ch => Number(ch.system?.CyberWorkType?.ChipSkills?.[skillName] || 0)));
+        if (Number(skill.system?.chipLevel || 0) !== agg) {
+          await this.actor.updateEmbeddedDocuments("Item", [
+            { _id: skill.id, "system.chipLevel": agg }
+          ], { render: false });
+        }
       }
 
       if (this.rendered) this.render(true);
