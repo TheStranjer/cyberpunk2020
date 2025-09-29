@@ -209,7 +209,8 @@ _prepareCyberware(sheet) {
     { key: "Torso", label: L("Torso") },
     { key: "Arm", label: L("Arm") },
     { key: "Leg", label: L("Leg") },
-    { key: "Nervous", label: L("Nervous") }
+    { key: "Nervous", label: L("Nervous") },
+    { key: "Chip",   label: L("Chip") }
   ];
   sheet.cw.bodyZones = bodyAll;
 

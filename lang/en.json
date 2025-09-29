@@ -504,5 +504,6 @@
     "CYBERPUNK.SDPSumTooltip": "Total SDP from implants and modules in this hit location",
     "CYBERPUNK.SDPCurrentTooltip": "Editable field for tracking SDP damage",
     "CYBERPUNK.ControlledByChip": "Controlled by chip",
-    "CYBERPUNK.CWT_Chip_Active": "Active"
+    "CYBERPUNK.CWT_Chip_Active": "Active",
+    "CYBERPUNK.Chip": "Chip"
 }

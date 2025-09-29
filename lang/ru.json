@@ -505,5 +505,6 @@
     "CYBERPUNK.SDPSumTooltip": "Сумма SDP имплантов и модулей в зоне",
     "CYBERPUNK.SDPCurrentTooltip": "Редактируемое поле для отслеживания урона по SDP",
     "CYBERPUNK.ControlledByChip": "Контролируется чипом",
-    "CYBERPUNK.CWT_Chip_Active": "Активен"
+    "CYBERPUNK.CWT_Chip_Active": "Активен",
+    "CYBERPUNK.Chip": "Чип"
 }
