@@ -182,6 +182,40 @@ export class CyberpunkActorSheet extends ActorSheet {
 
   /** @override */
   activateListeners(html) {
+    const root = html?.[0] || html;
+
+    if (this._cpAvatarCapture) {
+      try {
+        root.removeEventListener("pointerdown", this._cpAvatarCapture, { capture: true });
+        root.removeEventListener("click", this._cpAvatarCapture, { capture: true });
+      } catch (_) {}
+    }
+
+    const cpAvatarCapture = (ev) => {
+      const editable = ev.target?.closest?.("[data-edit]");
+      if (!editable) return;
+      if ((editable.dataset?.edit || "") !== "img") return;
+
+      ev.preventDefault();
+      ev.stopImmediatePropagation?.();
+
+      const fp = new FilePicker({
+        type: "image",
+        activeSource: "data",
+        current: "",
+        callback: (path) => this.actor.update({ img: path })
+      });
+      fp.render(true);
+      setTimeout(() => {
+        try { fp.browse({ activeSource: "data", current: "" }); }
+        catch { try { fp.browse("data", "", {}); } catch (e) { console.warn(e); } }
+      }, 0);
+    };
+
+    root.addEventListener("pointerdown", cpAvatarCapture, { capture: true });
+    root.addEventListener("click", cpAvatarCapture, { capture: true });
+    this._cpAvatarCapture = cpAvatarCapture;
+
     super.activateListeners(html);
 
     /**
