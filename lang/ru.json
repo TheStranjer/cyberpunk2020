@@ -506,5 +506,9 @@
     "CYBERPUNK.SDPCurrentTooltip": "Редактируемое поле для отслеживания урона по SDP",
     "CYBERPUNK.ControlledByChip": "Контролируется чипом",
     "CYBERPUNK.CWT_Chip_Active": "Активен",
-    "CYBERPUNK.Chip": "Чип"
+    "CYBERPUNK.Chip": "Чип",
+    "CYBERPUNK.ChipwareOnlyHere": "Здесь только киберимпланты (чипы).",
+    "CYBERPUNK.OnlyChipsHere": "Сюда можно класть только чипы.",
+    "CYBERPUNK.OnlyCyberwareHere": "Здесь только киберимпланты.",
+    "CYBERPUNK.ImplantCannotBeInstalledInThisZone": "Имплант нельзя установить в эту зону."
 }

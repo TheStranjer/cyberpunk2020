@@ -193,6 +193,34 @@ sheetData.cyberwareSegmentsLeft = [
       cyberCost: sortedItems.cyberware.reduce((a,b) => a + b.system.cost, 0)
     };
 
+    // Cyberware inventory & zones
+    const allCyber = (sortedItems.cyberware || []).slice();
+
+    sheetData.gear.cyberware = allCyber;
+    sheetData.gear.cyberwareInventory = allCyber;
+
+    const isEquipped = (it) => !!it.system?.equipped;
+    const activeCyber = allCyber.filter(isEquipped);
+
+    const zoneOf = (it) => String(it.system?.MountZone || it.system?.CyberBodyType?.Type || "");
+    const sideOf = (it) => String(it.system?.CyberBodyType?.Location || "");
+
+    sheetData.cyberZones = {
+      head: activeCyber.filter(it => zoneOf(it) === "Head"),
+      body: activeCyber.filter(it => zoneOf(it) === "Torso"),
+      nervous: activeCyber.filter(it => zoneOf(it) === "Nervous"),
+      "l-arm": activeCyber.filter(it => zoneOf(it) === "Arm" && sideOf(it) === "Left"),
+      "r-arm": activeCyber.filter(it => zoneOf(it) === "Arm" && sideOf(it) === "Right"),
+      "l-leg": activeCyber.filter(it => zoneOf(it) === "Leg" && sideOf(it) === "Left"),
+      "r-leg": activeCyber.filter(it => zoneOf(it) === "Leg" && sideOf(it) === "Right"),
+    };
+    const isChip = (it) => {
+      const cwt = it.system?.CyberWorkType ?? {};
+      return Array.isArray(cwt?.Types) ? cwt.Types.includes("Chip") : cwt?.Type === "Chip";
+    };
+    sheetData.chipsActive = allCyber.filter(it => isChip(it) && it.system?.CyberWorkType?.ChipActive === true);
+
+    sheetData.gear.cyberwareActive = activeCyber;
   }
 
   /** @override */
@@ -737,6 +765,25 @@ sheetData.cyberwareSegmentsLeft = [
       for (const ch of chips) if (ch.sheet?.rendered) ch.sheet.render(true);
       if (skill.sheet?.rendered) skill.sheet.render(true);
     });
+
+    // Drag sources for cyberware
+    const makeDraggable = (root) => {
+      const el = root?.[0] || root;
+      el.querySelectorAll('[data-item-id]').forEach((node) => {
+        if (node.dataset.draggableInit === '1') return;
+        node.dataset.draggableInit = '1';
+        node.setAttribute('draggable', 'true');
+        node.addEventListener('dragstart', (ev) => {
+          const id = node.dataset.itemId;
+          const it = this.actor.items.get(id);
+          if (!it) return;
+          const dragData = { type: "Item", actorId: this.actor.id, data: it.toObject() };
+          ev.dataTransfer.setData("text/plain", JSON.stringify(dragData));
+        });
+      });
+    };
+
+    makeDraggable(html[0] ?? html);
   }
 
   /**
@@ -750,14 +797,29 @@ sheetData.cyberwareSegmentsLeft = [
 
     // Search for the parent element with the data-drop-target attribute
     const dropTarget = event.target.closest("[data-drop-target]");
-    // If not found, then let the standard Foundry logic work
     if (!dropTarget) return super._onDropItem(event, data);
 
-    // 1. Drop to “program-list”.
-    if (dropTarget.dataset.dropTarget === "program-list") {
-      let itemData = await Item.implementation.fromDropData(data);
+    // Drop to “program-list”
+    const fromDrop = async () => {
+      if (Item?.fromDropData) return await Item.fromDropData(data);
+      if (Item?.implementation?.fromDropData) return await Item.implementation.fromDropData(data);
+      return data?.data ?? data;
+    };
 
-      // If it is not a program, skip it
+    const ensureLocalCopy = async (itemData) => {
+      let item = this.actor.items.get(itemData._id);
+      if (!item) {
+        const created = await this.actor.createEmbeddedDocuments("Item", [itemData]);
+        item = created[0];
+      }
+      return item;
+    };
+
+    const warn = (msg) => ui.notifications?.warn(msg);
+
+    if (dropTarget.dataset.dropTarget === "program-list") {
+      const itemData = await fromDrop();
+
       if (itemData.type !== "program") {
         return ui.notifications.warn(localize("NotAProgram", { name: itemData.name }));
       }
@@ -775,10 +837,9 @@ sheetData.cyberwareSegmentsLeft = [
       return this.actor.createEmbeddedDocuments("Item", [ itemData ]);
     }
 
-    // 2. Drop in “active-programs”
+    // Drop in active-programs
     if (dropTarget.dataset.dropTarget === "active-programs") {
-      // Get Item from drag data
-      let itemData = await Item.implementation.fromDropData(data);
+      const itemData = await fromDrop();
 
       if (itemData.type !== "program") {
         return ui.notifications.warn(localize("OnlyProgramsCanBeActivated", { name: itemData.name }));
@@ -825,7 +886,64 @@ sheetData.cyberwareSegmentsLeft = [
       return;
     }
 
-    // If not “program-list” and not “active-programs”, then execute the standard Foundry mechanism
+    // CHIPS: top plate
+    if (dropTarget.dataset.dropTarget === "active-chips") {
+      const itemData = await fromDrop();
+      if (itemData.type !== "cyberware") return warn(localize("ChipwareOnlyHere"));
+
+      const cwt = itemData.system?.CyberWorkType ?? {};
+      const types = Array.isArray(cwt.Types) ? cwt.Types : (cwt.Type ? [cwt.Type] : []);
+      if (!types.includes("Chip")) return warn(localize("OnlyChipsHere"));
+
+      const item = await ensureLocalCopy(itemData);
+      await item.update({
+        "system.equipped": true,
+        "system.CyberWorkType.ChipActive": true
+      });
+      return this.render(true);
+    }
+
+    // Return to inventory (bottom)
+    if (dropTarget.dataset.dropTarget === "cyber-inventory") {
+      const itemData = await fromDrop();
+      if (itemData.type !== "cyberware") return warn(localize("OnlyCyberwareHere"));
+
+      const item = await ensureLocalCopy(itemData);
+      await item.update({
+        "system.equipped": false,
+        "system.CyberBodyType.Location": "",
+        "system.CyberWorkType.ChipActive": false
+      });
+      return this.render(true);
+    }
+
+    // Installation by zone
+    if (dropTarget.dataset.dropTarget?.startsWith("zone:")) {
+      const zoneKey = dropTarget.dataset.dropTarget.split(":")[1];
+
+      const itemData = await fromDrop();
+      if (itemData.type !== "cyberware") return warn(localize("OnlyCyberwareHere"));
+
+      const mount = String(itemData.system?.MountZone || itemData.system?.CyberBodyType?.Type || "");
+      let allowed = false;
+      const updates = { "system.equipped": true };
+
+      switch (zoneKey) {
+        case "head": allowed = (mount === "Head"); break;
+        case "body": allowed = (mount === "Torso"); break;
+        case "nervous": allowed = (mount === "Nervous"); break;
+        case "l-arm": allowed = (mount === "Arm"); if (allowed) updates["system.CyberBodyType.Location"] = "Left"; break;
+        case "r-arm": allowed = (mount === "Arm"); if (allowed) updates["system.CyberBodyType.Location"] = "Right"; break;
+        case "l-leg": allowed = (mount === "Leg"); if (allowed) updates["system.CyberBodyType.Location"] = "Left"; break;
+        case "r-leg": allowed = (mount === "Leg"); if (allowed) updates["system.CyberBodyType.Location"] = "Right"; break;
+      }
+      if (!allowed) return warn(localize("ImplantCannotBeInstalledInThisZone"));
+
+      const item = await ensureLocalCopy(itemData);
+      await item.update(updates);
+      return this.render(true);
+    }
+
     return super._onDropItem(event, data);
   }
 }

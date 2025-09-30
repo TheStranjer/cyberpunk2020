@@ -210,7 +210,7 @@ _prepareCyberware(sheet) {
     { key: "Arm", label: L("Arm") },
     { key: "Leg", label: L("Leg") },
     { key: "Nervous", label: L("Nervous") },
-    { key: "Chip",   label: L("Chip") }
+    { key: "Chip", label: L("Chip") }
   ];
   sheet.cw.bodyZones = bodyAll;
 
@@ -286,66 +286,91 @@ _prepareCyberware(sheet) {
 
   sheet.cw.parentCwTypeChoices = [...TYPE_CHOICES_BASE, ...extra];
 
-  // Implant: free/taken options with automatic module accounting
-  const provided = Number(this.item.system?.CyberWorkType?.OptionsAvailable) || 0;
-  let used = 0;
-  if (this.actor) {
-    const all = this.actor.items?.contents || [];
-    const selfId = this.item.id;
-    used = all
-      .filter(i => i.type === "cyberware" && i.system?.Module?.IsModule && i.system?.Module?.ParentId === selfId)
-      .reduce((sum, m) => sum + (Number(m.system?.Module?.SlotsTaken) || 0), 0);
-  }
-  sheet.cw.implantSlotsUsed = used;
-  sheet.cw.implantSlotsTotal = provided;
-  sheet.cw.implantSlotsLeft = Math.max(0, provided - used);
-
-  // Module: implants available on the actor that match the type
-  const isModule = !!this.item.system?.Module?.IsModule;
-  if (isModule && this.actor) {
-    const needType = this.item.system?.Module?.AllowedParentCyberwareType || "";
-    const all = this.actor.items?.contents || [];
-    // count the available slots for each candidate
-    const leftFor = (p) => {
-      const provided = Number(p.system?.CyberWorkType?.OptionsAvailable || 0);
-      const used = all
-        .filter(i => i.type === "cyberware" && i.system?.Module?.IsModule && i.system?.Module?.ParentId === p.id)
-        .reduce((sum, m) => sum + (Number(m.system?.Module?.SlotsTaken) || 0), 0);
-      return Math.max(0, provided - used);
-    };
-
-  sheet.cw.parentImplants = all
-    .filter(i =>
-      i.type === "cyberware" &&
-      cwHasType(i, "Implant") &&
-      (!needType || String(i.system?.cyberwareType || "") === needType)
-    )
-    .map(i => ({ id: i.id, name: i.name, left: leftFor(i) }));
-  } else {
-    sheet.cw.parentImplants = [];
-  }
-
-  // Implant: free/taken options
-  if (cwHasType(this.item, "Implant")) {
+    // Implant: free/taken options with automatic module accounting (only equipped modules count)
     const provided = Number(this.item.system?.CyberWorkType?.OptionsAvailable) || 0;
     let used = 0;
-
     if (this.actor) {
       const all = this.actor.items?.contents || [];
       const selfId = this.item.id;
-      used = all.reduce((sum, it) => {
-        const mod = it.system?.Module;
-        if (it.type === "cyberware" && mod?.IsModule && mod?.ParentId === selfId) {
-          return sum + (Number(mod.SlotsTaken) || 0);
-        }
-        return sum;
-      }, 0);
+      used = all
+        .filter(i =>
+          i.type === "cyberware" &&
+          i.system?.Module?.IsModule &&
+          i.system?.Module?.ParentId === selfId &&
+          !!i.system?.equipped
+        )
+        .reduce((sum, m) => sum + (Number(m.system?.Module?.SlotsTaken) || 0), 0);
     }
-
     sheet.cw.implantSlotsUsed = used;
     sheet.cw.implantSlotsTotal = provided;
     sheet.cw.implantSlotsLeft = Math.max(0, provided - used);
-  }
+
+    // Module: implants available on the actor that match the type (only equipped, same zone/side, exclude self)
+    const isModule = !!this.item.system?.Module?.IsModule;
+    if (isModule && this.actor) {
+      const needType = this.item.system?.Module?.AllowedParentCyberwareType || "";
+      const all = this.actor.items?.contents || [];
+
+      const zoneOf = (it) => String(it.system?.MountZone || it.system?.CyberBodyType?.Type || "");
+      const sideOf = (it) => String(it.system?.CyberBodyType?.Location || "");
+      const needZone = zoneOf(this.item);
+      const needSide = sideOf(this.item);
+
+      // Count available slots of a candidate implant (only equipped modules count)
+      const leftFor = (p) => {
+        const provided = Number(p.system?.CyberWorkType?.OptionsAvailable || 0);
+        const used = all
+          .filter(i =>
+            i.type === "cyberware" &&
+            i.system?.Module?.IsModule &&
+            i.system?.Module?.ParentId === p.id &&
+            !!i.system?.equipped
+          )
+          .reduce((sum, m) => sum + (Number(m.system?.Module?.SlotsTaken) || 0), 0);
+        return Math.max(0, provided - used);
+      };
+
+      sheet.cw.parentImplants = all
+        .filter(i =>
+          i.type === "cyberware" &&
+          cwHasType(i, "Implant") &&
+          i.id !== this.item.id &&
+          !!i.system?.equipped &&
+          (!needType || String(i.system?.cyberwareType || "") === needType) &&
+          (zoneOf(i) === needZone) &&
+          (needZone === "Arm" || needZone === "Leg" ? (!needSide || sideOf(i) === needSide) : true)
+        )
+        .map(i => ({ id: i.id, name: i.name, left: leftFor(i) }));
+    } else {
+      sheet.cw.parentImplants = [];
+    }
+
+    // Implant: free/taken options (ONLY equipped modules count)
+    if (cwHasType(this.item, "Implant")) {
+      const provided = Number(this.item.system?.CyberWorkType?.OptionsAvailable) || 0;
+      let used = 0;
+
+      if (this.actor) {
+        const all = this.actor.items?.contents || [];
+        const selfId = this.item.id;
+        used = all.reduce((sum, it) => {
+          const mod = it.system?.Module;
+          if (
+            it.type === "cyberware" &&
+            mod?.IsModule &&
+            mod?.ParentId === selfId &&
+            !!it.system?.equipped
+          ) {
+            return sum + (Number(mod.SlotsTaken) || 0);
+          }
+          return sum;
+        }, 0);
+      }
+
+      sheet.cw.implantSlotsUsed = used;
+      sheet.cw.implantSlotsTotal = provided;
+      sheet.cw.implantSlotsLeft = Math.max(0, provided - used);
+    }
 }
 
   async _cwSet(path, value) {
@@ -491,6 +516,22 @@ _prepareCyberware(sheet) {
         setTimeout(() => {
           el.setAttribute("list", listId);
         }, 150);
+      }
+    });
+
+    // Chip sheet
+    html.on("change", "input[name^='system.CyberWorkType.ChipSkills.']", async (ev) => {
+      const actor = this.item.actor;
+      if (!actor) return;
+
+      const name = ev.currentTarget.name.split(".").pop();
+      const n = Number(ev.currentTarget.value);
+      const value = Number.isFinite(n) ? n : 0;
+
+      const skills = actor.items.filter(i => i.type === "skill" && i.name === name);
+      if (skills.length) {
+        const updates = skills.map(s => ({ _id: s.id, "system.chipLevel": value }));
+        await actor.updateEmbeddedDocuments("Item", updates, { render: false });
       }
     });
 
@@ -772,6 +813,66 @@ _prepareCyberware(sheet) {
 
       await this._cwSet("system.CyberWorkType.Types", next);
     });
+
+    // Auto-refresh on related Item updates (keeps module/implant sheets in sync)
+    if (this.actor) {
+      const actorId = this.actor.id;
+
+      this._cp_boundOnItemUpdate = (item, changes) => {
+        if (item?.parent?.id !== actorId) return;
+        if (item.type !== "cyberware") return;
+
+        const sys = changes?.system || {};
+        const touched =
+          ("equipped" in sys) ||
+          ("MountZone" in sys) ||
+          ("cyberwareType" in sys) ||
+          ("CyberBodyType" in sys) ||
+          ("Module" in sys) ||
+          (sys.CyberWorkType && ("OptionsAvailable" in sys.CyberWorkType));
+
+        if (!touched) return;
+
+        const isThisModule = !!this.item.system?.Module?.IsModule;
+        const isThisImplant = cwHasType(this.item, "Implant");
+
+        // Module sheet: re-render when any cyberware on this actor changes in a way that affects the parent list/slots
+        if (isThisModule) {
+          this.render(false);
+          return;
+        }
+
+        // Implant sheet: re-render only if a module touching this implant changed
+        if (isThisImplant) {
+          const mod = item.system?.Module;
+          if (mod?.IsModule && mod?.ParentId === this.item.id) {
+            this.render(false);
+          }
+        }
+      };
+
+      Hooks.on("updateItem", this._cp_boundOnItemUpdate);
+
+      const closeHook = `close${this.constructor.name}`;
+      this._cp_unbindOnClose = (app) => {
+        if (app !== this) return;
+        Hooks.off("updateItem", this._cp_boundOnItemUpdate);
+        Hooks.off(closeHook, this._cp_unbindOnClose);
+      };
+      Hooks.on(closeHook, this._cp_unbindOnClose);
+    }
+
+    // MODULE: toggling equipped should refresh parent implant sheet (slots left)
+    html.on("change", "input[name='system.equipped']", async ev => {
+      const checked = !!ev.currentTarget.checked;
+      await this.item.update({ "system.equipped": checked }, { render: false });
+
+      const parentId = this.item.system?.Module?.ParentId || "";
+      const parent = parentId ? this.actor?.items?.get(parentId) : null;
+      if (parent?.sheet?.rendered) parent.sheet.render(true);
+
+      this.render(false);
+    });
   }
 
   /** @override */
@@ -826,6 +927,27 @@ _prepareCyberware(sheet) {
       foundry.utils.setProperty(data, "system.isChipped", !!legacy);
       if (data.system && "chipped" in data.system) delete data.system.chipped;
     }
+
+    if (this.item.type === "cyberware") {
+    const equip = foundry.utils.getProperty(data, "system.equipped");
+    if (equip === true) {
+      const zone = String(
+        foundry.utils.getProperty(data, "system.MountZone") ||
+        foundry.utils.getProperty(data, "system.CyberBodyType.Type") ||
+        this.item.system?.MountZone ||
+        this.item.system?.CyberBodyType?.Type ||
+        ""
+      );
+      const loc = String(
+        foundry.utils.getProperty(data, "system.CyberBodyType.Location") ||
+        this.item.system?.CyberBodyType?.Location ||
+        ""
+      );
+      if ((zone === "Arm" || zone === "Leg") && !loc) {
+        foundry.utils.setProperty(data, "system.CyberBodyType.Location", "Left");
+      }
+    }
+  }
 
     await this.item.update(data);
   }

@@ -505,5 +505,9 @@
     "CYBERPUNK.SDPCurrentTooltip": "Editable field for tracking SDP damage",
     "CYBERPUNK.ControlledByChip": "Controlled by chip",
     "CYBERPUNK.CWT_Chip_Active": "Active",
-    "CYBERPUNK.Chip": "Chip"
+    "CYBERPUNK.Chip": "Chip",
+    "CYBERPUNK.ChipwareOnlyHere": "Chipware (chips) only here.",
+    "CYBERPUNK.OnlyChipsHere": "Only chips can be placed here.",
+    "CYBERPUNK.OnlyCyberwareHere": "Cyberware only here.",
+    "CYBERPUNK.ImplantCannotBeInstalledInThisZone": "The implant cannot be installed in this zone."
 }

@@ -918,7 +918,8 @@ div.statderive .value.rightborder {
 .cyberpunk .field select[name="system.MountZone"],
 .cyberpunk .field select[name="system.cyberwareType"],
 .cyberpunk .field select.cw-add-location,
-.cyberpunk .field select[name="system.CyberBodyType.Location"]{
+.cyberpunk .field select[name="system.CyberBodyType.Location"]
+.cyberpunk .field label[for="system.CyberBodyType.Location"]{
   min-width: 0;
   max-width: 100%;
   width: 100%;

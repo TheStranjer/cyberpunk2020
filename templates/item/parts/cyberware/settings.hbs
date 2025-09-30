@@ -14,7 +14,8 @@
   {{> (template "fields/string") label="Abbrev" edit="system.abbrev"}}
 
   {{!-- Module toggle --}}
-  {{> (template "fields/boolean") label="CWT_IsModule" edit="system.Module.IsModule"}}  
+  {{> (template "fields/boolean") label="CWT_IsModule" edit="system.Module.IsModule"}}
+  {{!-- Сторона для Arm/Leg на общем уровне --}}
   <div class="field">
     <label>{{CPLocal "CWT_Install_MountZone"}}</label>
     <span class="flex-pad"></span>
@@ -25,6 +26,17 @@
       {{/each}}
     </select>
   </div>
+    {{#if (or (equals system.MountZone "Arm") (equals system.MountZone "Leg"))}}
+    <div class="field">
+      <label for="system.CyberBodyType.Location">{{CPLocal "CyberBodyTypeLocation"}}</label>
+      <span class="flex-pad"></span>
+      <select name="system.CyberBodyType.Location">
+        <option value=""></option>  {{!-- пустое значение по умолчанию --}}
+        <option value="Left"  {{#if (equals system.CyberBodyType.Location "Left")}}selected{{/if}}>{{CPLocal "Left"}}</option>
+        <option value="Right" {{#if (equals system.CyberBodyType.Location "Right")}}selected{{/if}}>{{CPLocal "Right"}}</option>
+      </select>
+    </div>
+  {{/if}}
 </div>
 
 {{!-- Module block (outside of CyberWorkType) --}}
@@ -342,29 +354,6 @@
         {{/each}}
       </select>
     </div>
-    {{#if (equals system.cyberwareType "CyberArm")}}
-      <div class="field">
-        <label>{{CPLocal "CyberBodyTypeLocation"}}</label>
-        <span class="flex-pad"></span>
-        <select name="system.CyberBodyType.Location">
-          <option value=""></option>
-          <option value="Left"  {{#if (equals system.CyberBodyType.Location "Left")}}selected{{/if}}>{{CPLocal "Left"}}</option>
-          <option value="Right" {{#if (equals system.CyberBodyType.Location "Right")}}selected{{/if}}>{{CPLocal "Right"}}</option>
-        </select>
-      </div>
-    {{else}}
-      {{#if (equals system.cyberwareType "CyberLeg")}}
-        <div class="field">
-          <label>{{CPLocal "CyberBodyTypeLocation"}}</label>
-          <span class="flex-pad"></span>
-          <select name="system.CyberBodyType.Location">
-            <option value=""></option>
-            <option value="Left"  {{#if (equals system.CyberBodyType.Location "Left")}}selected{{/if}}>{{CPLocal "Left"}}</option>
-            <option value="Right" {{#if (equals system.CyberBodyType.Location "Right")}}selected{{/if}}>{{CPLocal "Right"}}</option>
-          </select>
-        </div>
-      {{/if}}
-    {{/if}}
   {{/if}}
 
   {{!-- ===== Chip: activation toggle ===== --}}
