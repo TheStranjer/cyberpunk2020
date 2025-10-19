@@ -311,18 +311,47 @@ sheetData.cyberwareSegmentsLeft = [
     // TODO: Refactor these skill interactivity stuff into their own methods
     // Skill level changes
     html.find(".skill-level").click((event) => event.target.select()).change(async (event) => {
-      let skill = this.actor.items.get(event.currentTarget.dataset.skillId);
-      let target = skill.system.isChipped ? "system.chipLevel" : "system.level";
-      let updateData = { _id: skill.id };
-      updateData[target] = parseInt(event.target.value, 10);
-      // Mild hack to make sheet refresh and re-sort: the ability to do that should just be put in 
-      await this.actor.updateEmbeddedDocuments("Item", [updateData]);
-      // let combatSenseItemFind = this.actor.items.find(item => item.type === 'skill' && item.name.includes('Combat'))?.system.level || 0;
-      let combatSenseItemFind = 
+      const skill = this.actor.items.get(event.currentTarget.dataset.skillId);
+      if (!skill) return;
+
+      const isChipped = !!skill.system.isChipped;
+      const value = Number.parseInt(event.target.value, 10);
+      const safeValue = Number.isFinite(value) ? value : 0;
+
+      const targetKey = isChipped ? "system.chipLevel" : "system.level";
+      await this.actor.updateEmbeddedDocuments("Item", [
+        { _id: skill.id, [targetKey]: safeValue }
+      ], { render: false });
+
+      if (isChipped) {
+        const skillName = skill.name;
+        const chips = this.actor.items.filter(i =>
+          i.type === "cyberware" &&
+          cwHasType(i, "Chip") &&
+          i.system?.CyberWorkType?.ChipSkills &&
+          Object.prototype.hasOwnProperty.call(i.system.CyberWorkType.ChipSkills, skillName)
+        );
+
+        if (chips.length) {
+          const updates = chips.map(ch => ({
+            _id: ch.id,
+            [`system.CyberWorkType.ChipSkills.${skillName}`]: safeValue
+          }));
+          await this.actor.updateEmbeddedDocuments("Item", updates, { render: false });
+
+          for (const ch of chips) if (ch.sheet?.rendered) ch.sheet.render(true);
+        }
+      }
+
+      const combatSenseItemFind =
         this.actor.items.find(item => item.type === 'skill' && item.name.includes('Combat'))?.system.level
         ?? this.actor.items.find(item => item.type === 'skill' && item.name.includes('Боя'))?.system.level
         ?? 0;
-      await this.actor.update({ "system.CombatSenseMod": Number(combatSenseItemFind) });
+      await this.actor.update({ "system.CombatSenseMod": Number(combatSenseItemFind) }, { render: false });
+
+      if (this.rendered) this.render(true);
+
+      if (skill.sheet?.rendered) skill.sheet.render(true);
     });
     // Toggle skill chipped
     html.find(".chip-toggle").click(async ev => {

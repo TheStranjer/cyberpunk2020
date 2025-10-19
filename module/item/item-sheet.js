@@ -519,22 +519,6 @@ _prepareCyberware(sheet) {
       }
     });
 
-    // Chip sheet
-    html.on("change", "input[name^='system.CyberWorkType.ChipSkills.']", async (ev) => {
-      const actor = this.item.actor;
-      if (!actor) return;
-
-      const name = ev.currentTarget.name.split(".").pop();
-      const n = Number(ev.currentTarget.value);
-      const value = Number.isFinite(n) ? n : 0;
-
-      const skills = actor.items.filter(i => i.type === "skill" && i.name === name);
-      if (skills.length) {
-        const updates = skills.map(s => ({ _id: s.id, "system.chipLevel": value }));
-        await actor.updateEmbeddedDocuments("Item", updates, { render: false });
-      }
-    });
-
     // Remove
     html.on("click", ".cw-remove-stat", ev => this._cwDelete("system.CyberWorkType.Stat", ev.currentTarget.dataset.key));
     html.on("click", ".cw-remove-check", ev => this._cwDelete("system.CyberWorkType.Checks", ev.currentTarget.dataset.key));
@@ -542,11 +526,22 @@ _prepareCyberware(sheet) {
     html.on("click", ".cw-remove-location", ev => this._cwDelete("system.CyberWorkType.Locations", ev.currentTarget.dataset.key));
     html.on("click", ".cw-remove-penalty", ev => this._cwDelete("system.CyberWorkType.Penalties", ev.currentTarget.dataset.key));
     html.on("click", ".cw-remove-chipskill", async ev => {
-      await this._cwDelete("system.CyberWorkType.ChipSkills", ev.currentTarget.dataset.key);
+      const skillName = ev.currentTarget.dataset.key;
+
+      await this._cwDelete("system.CyberWorkType.ChipSkills", skillName);
+
       await this._cp_syncChipLevelsToSkills();
       if (typeof this._cp_syncActiveFlagsToSkills === "function") {
         await this._cp_syncActiveFlagsToSkills();
       }
+
+      const actor = this.item.actor;
+      if (actor) {
+        const skills = actor.items.filter(i => i.type === "skill" && i.name === skillName);
+        for (const s of skills) if (s.sheet?.rendered) s.sheet.render(true);
+      }
+
+      if (actor?.sheet?.rendered) actor.sheet.render(true);
     });
     html.on("click", ".cw-remove-mount", async ev => {
       const key = ev.currentTarget.dataset.key;
@@ -656,12 +651,27 @@ _prepareCyberware(sheet) {
     // Changing the ChipSkills level
     html.on("change", "input[name^='system.CyberWorkType.ChipSkills.']", async ev => {
       const el = ev.currentTarget;
+      const skillName = el.name.split(".").pop();
       const n = Number(el.value);
       await this._cwSet(el.name, Number.isFinite(n) ? n : 0);
+
       await this._cp_syncChipLevelsToSkills();
       if (typeof this._cp_syncActiveFlagsToSkills === "function") {
         await this._cp_syncActiveFlagsToSkills();
       }
+
+      const actor = this.item.actor;
+      if (actor?.sheet?.rendered) actor.sheet.render(true);
+
+      if (actor) {
+        for (const it of actor.items) {
+          if (it.type !== "skill") continue;
+          if (it.name !== skillName) continue;
+          if (it.sheet?.rendered) it.sheet.render(true);
+        }
+      }
+
+      this.render(true);
     });
 
     html.on("change", "input[name='system.CyberWorkType.ChipActive']", async ev => {
@@ -962,7 +972,8 @@ _prepareCyberware(sheet) {
 
     const chipItems = actor.items.filter(i =>
       i.type === "cyberware" &&
-      cwHasType(i, "Chip")
+      cwHasType(i, "Chip") &&
+      !!i.system?.CyberWorkType?.ChipActive
     );
 
     const agg = {};
@@ -977,15 +988,25 @@ _prepareCyberware(sheet) {
 
     const skillItems = actor.items.filter(i => i.type === "skill");
     const updates = [];
+    const updatedSkillIds = [];
+
     for (const s of skillItems) {
-      if (!(s.name in agg)) continue;
       const want = Number(agg[s.name] || 0);
-      const cur = Number(s.system?.chipLevel || 0);
+      const cur  = Number(s.system?.chipLevel || 0);
       if (want !== cur) {
         updates.push({ _id: s.id, "system.chipLevel": want });
+        updatedSkillIds.push(s.id);
       }
     }
-    if (updates.length) await actor.updateEmbeddedDocuments("Item", updates);
+
+    if (updates.length) {
+      await actor.updateEmbeddedDocuments("Item", updates, { render: false });
+
+      for (const sid of updatedSkillIds) {
+        const sk = actor.items.get(sid);
+        if (sk?.sheet?.rendered) sk.sheet.render(true);
+      }
+    }
   }
   /**
    * Set system.isChipped for skills based on all active chips of the actor
@@ -1010,11 +1031,21 @@ _prepareCyberware(sheet) {
 
     const skills = actor.items.filter(i => i.type === "skill");
     const updates = [];
+    const updatedIds = [];
     for (const s of skills) {
       const want = !!activeMap[s.name];
-      const cur = !!(s.system?.isChipped);
-      if (want !== cur) updates.push({ _id: s.id, "system.isChipped": want });
+      const cur  = !!(s.system?.isChipped);
+      if (want !== cur) {
+        updates.push({ _id: s.id, "system.isChipped": want });
+        updatedIds.push(s.id);
+      }
     }
-    if (updates.length) await actor.updateEmbeddedDocuments("Item", updates, { render: false });
+    if (updates.length) {
+      await actor.updateEmbeddedDocuments("Item", updates, { render: false });
+      for (const sid of updatedIds) {
+        const sk = actor.items.get(sid);
+        if (sk?.sheet?.rendered) sk.sheet.render(true);
+      }
+    }
   }
 }
