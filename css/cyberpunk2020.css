@@ -1177,6 +1177,49 @@ div.statderive .value.rightborder {
 .field.gear.item-edit.full-width:hover > .item-delete {
   display: inline;
 }
+.active-cyberware .active-cyberware-segment .field.gear.item-edit.full-width.item,
+.field-list[data-drop-target="cyber-inventory"] .field.gear.item-edit.full-width.item,
+.chipware-container .chipware {
+  cursor: pointer !important;
+}
+.active-cyberware .active-cyberware-segment > button {
+  cursor: default !important;
+}
+.active-cyberware .active-cyberware-segment > button:hover,
+.active-cyberware .active-cyberware-segment > button:focus,
+.active-cyberware .active-cyberware-segment > button:focus-visible,
+.active-cyberware .active-cyberware-segment > button:active {
+  outline: none !important;
+  box-shadow: none !important;
+  filter: none !important;
+}
+.active-cyberware .active-cyberware-segment:hover {
+  border-color: black !important;
+  box-shadow: none !important;
+}
+.chipware-container .chipware .item-unequip {
+  position: absolute;
+  top: 0px;
+  right: 0px;
+  display: none;
+  background-color: transparent;
+  color: black;
+}
+.chipware-container .chipware:hover > .item-unequip {
+  display: inline;
+}
+.field.gear.item-edit.full-width .item-unequip {
+  position: absolute;
+  top: 1px;
+  right: 1px;
+  cursor: pointer;
+  display: none;
+  z-index: 1;
+}
+.field.gear.item-edit.full-width:hover > .item-unequip {
+  display: inline;
+}
+
 /* CYBERWARE TAB END*/
 
 /* The cleanup button in the skill search */

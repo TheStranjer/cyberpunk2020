@@ -260,6 +260,8 @@ sheetData.cyberwareSegmentsLeft = [
     this._cpAvatarCapture = cpAvatarCapture;
 
     super.activateListeners(html);
+    html.find('.item[draggable=true]').on('dragstart', (e) => this._onDragStart(e.originalEvent ?? e));
+    html.find('[data-drop-target]').on('dragover', (ev) => ev.preventDefault());
 
     /**
      * Get an owned item from a click event, for any event trigger with a data-item-id property
@@ -536,9 +538,10 @@ sheetData.cyberwareSegmentsLeft = [
     });
 
     // Edit item
-    html.find('.item-edit').click(ev => {
+    html.find('.item-edit').on('click', (ev) => {
+      if (ev.target.closest('.item-unequip')) return;
       ev.stopPropagation();
-      let item = getEventItem(this, ev);
+      const item = getEventItem(this, ev);
       item.sheet.render(true);
     });
 
@@ -812,7 +815,37 @@ sheetData.cyberwareSegmentsLeft = [
       });
     };
 
+    html.on('click', '.item-unequip', (e) => this._onActiveUnequip(e));
+    html.find('.item-unequip').on('mousedown click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      if (e.stopImmediatePropagation) e.stopImmediatePropagation();
+      this._onActiveUnequip(e);
+    });
+
     makeDraggable(html[0] ?? html);
+  }
+
+  async _onActiveUnequip(event) {
+    event.preventDefault();
+    event.stopPropagation();
+    if (event.stopImmediatePropagation) event.stopImmediatePropagation();
+
+    const target = event.currentTarget;
+    const id = target?.dataset?.itemId
+            || target.closest('[data-item-id]')?.dataset?.itemId;
+
+    if (!id) return;
+    const item = this.actor.items.get(id);
+    if (!item) return;
+
+    const updates = {
+      "system.equipped": false,
+      "system.CyberWorkType.ChipActive": false
+    };
+
+    await item.update(updates);
+    this.render(false);
   }
 
   /**
@@ -946,27 +979,41 @@ sheetData.cyberwareSegmentsLeft = [
       return this.render(true);
     }
 
-    // Installation by zone
+    // Installation by zone (auto-route to item's mount)
     if (dropTarget.dataset.dropTarget?.startsWith("zone:")) {
       const zoneKey = dropTarget.dataset.dropTarget.split(":")[1];
 
       const itemData = await fromDrop();
       if (itemData.type !== "cyberware") return warn(localize("OnlyCyberwareHere"));
+        {
+          const cwt = itemData.system?.CyberWorkType ?? {};
+          const types = Array.isArray(cwt.Types) ? cwt.Types : (cwt.Type ? [cwt.Type] : []);
+          if (types.includes("Chip")) {
+            const item = await ensureLocalCopy(itemData);
+            await item.update({
+              "system.equipped": true,
+              "system.CyberWorkType.ChipActive": true,
+              "system.CyberBodyType.Location": ""
+            });
+            return this.render(true);
+          }
+        }
 
       const mount = String(itemData.system?.MountZone || itemData.system?.CyberBodyType?.Type || "");
-      let allowed = false;
       const updates = { "system.equipped": true };
 
-      switch (zoneKey) {
-        case "head": allowed = (mount === "Head"); break;
-        case "body": allowed = (mount === "Torso"); break;
-        case "nervous": allowed = (mount === "Nervous"); break;
-        case "l-arm": allowed = (mount === "Arm"); if (allowed) updates["system.CyberBodyType.Location"] = "Left"; break;
-        case "r-arm": allowed = (mount === "Arm"); if (allowed) updates["system.CyberBodyType.Location"] = "Right"; break;
-        case "l-leg": allowed = (mount === "Leg"); if (allowed) updates["system.CyberBodyType.Location"] = "Left"; break;
-        case "r-leg": allowed = (mount === "Leg"); if (allowed) updates["system.CyberBodyType.Location"] = "Right"; break;
+      const sideFromDrop = (key) => ({
+        "l-arm": "Left", "r-arm": "Right",
+        "l-leg": "Left", "r-leg": "Right"
+      })[key];
+
+      if (mount === "Arm" || mount === "Leg") {
+        const dropSide = sideFromDrop(zoneKey);
+        updates["system.CyberBodyType.Location"] =
+          dropSide || (itemData.system?.CyberBodyType?.Location || "Left");
+      } else {
+        updates["system.CyberBodyType.Location"] = "";
       }
-      if (!allowed) return warn(localize("ImplantCannotBeInstalledInThisZone"));
 
       const item = await ensureLocalCopy(itemData);
       await item.update(updates);

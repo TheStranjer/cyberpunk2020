@@ -16,11 +16,11 @@
     <div class="chipware-container" data-drop-target="active-chips">
     {{#each chipsActive as |chip|}}
     {{#with chip.system}}
-    <div class="chipware field gear full-width" data-full="{{chip.name}}" style="background-image: url('systems/cyberpunk2020/img/chip.png')" data-item-id="{{chip.id}}">
+    <div class="chipware field gear full-width" data-full="{{chip.name}}" style="background-image: url('systems/cyberpunk2020/img/chip.png')" data-item-id="{{chip.id}}" draggable="true">
         <span class="chip-name">
             <span class="chip-name-text">{{chip.name}}</span>
         </span>
-        <div class="chipware-slot item-delete" data-item-id="{{chip.id}}">X</div>
+        <div class="chipware-slot item-unequip" data-item-id="{{chip.id}}" draggable="false">X</div>
     </div>
     {{/with}}
     {{/each}}
@@ -38,12 +38,12 @@
             data-drop-target="zone:{{this.area}}">
             <button type="button">{{this.area}}</button>
             {{#each (lookup ../cyberZones this.area) as |cyber|}}
-                <div class="field gear item-edit full-width" data-item-id="{{cyber.id}}">
+                <div class="field gear item-edit full-width item" data-item-id="{{cyber.id}}" draggable="true">
                 <label>{{cyber.name}}</label>
                 {{#with cyber.system}}
                     <span>{{CPLocal "HumanityLossAbbrev"}}: {{humanityLoss}}</span>
                 {{/with}}
-                <span class="item-delete" data-item-id="{{cyber.id}}">X</span>
+                <span class="item-unequip" data-item-id="{{cyber.id}}" draggable="false">X</span>
                 </div>
             {{/each}}
             </section>
@@ -59,12 +59,12 @@
                 data-drop-target="zone:{{this.area}}">
                 <button type="button">{{this.area}}</button>
                 {{#each (lookup ../cyberZones this.area) as |cyber|}}
-                    <div class="field gear item-edit full-width" data-item-id="{{cyber.id}}">
+                    <div class="field gear item-edit full-width item" data-item-id="{{cyber.id}}" draggable="true">
                     <label>{{cyber.name}}</label>
                     {{#with cyber.system}}
                         <span>{{CPLocal "HumanityLossAbbrev"}}: {{humanityLoss}}</span>
                     {{/with}}
-                    <span class="item-delete" data-item-id="{{cyber.id}}">X</span>
+                    <span class="item-unequip" data-item-id="{{cyber.id}}" draggable="false">X</span>
                     </div>
                 {{/each}}
             </section>
@@ -82,7 +82,7 @@
 {{/if}}
 <div class="field-list" data-drop-target="cyber-inventory">
     {{#each gear.cyberware as |cyber|}}
-    <div class="field gear item-edit full-width" data-item-id="{{cyber.id}}">
+    <div class="field gear item-edit full-width item" data-item-id="{{cyber.id}}" draggable="true">
         <div class="field-image" data-item-id="{{cyber.id}}">
             <img src={{cyber.img}}>
         </div>
