@@ -509,5 +509,7 @@
     "CYBERPUNK.ChipwareOnlyHere": "Chipware (chips) only here.",
     "CYBERPUNK.OnlyChipsHere": "Only chips can be placed here.",
     "CYBERPUNK.OnlyCyberwareHere": "Cyberware only here.",
-    "CYBERPUNK.ImplantCannotBeInstalledInThisZone": "The implant cannot be installed in this zone."
+    "CYBERPUNK.ImplantCannotBeInstalledInThisZone": "The implant cannot be installed in this zone.",
+    "CYBERPUNK.ActiveChipware": "Active Chipware",
+    "CYBERPUNK.ActiveCyberware": "Active Cyberware"
 }

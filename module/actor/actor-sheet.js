@@ -62,19 +62,32 @@ export class CyberpunkActorSheet extends ActorSheet {
       sheetData.StunDeathMod = StunDeathMod;
     }
 
-/*definitions for active cyberware segments - cyberware anatomy display*/
-    sheetData.cyberwareSegmentsRight = [
-  { area: "nervous" },
-  { area: "body" },
-  { area: "r-arm" },
-  { area: "r-leg" }
-];
+    /*definitions for active cyberware segments - cyberware anatomy display*/
+        sheetData.cyberwareSegmentsRight = [
+      { area: "nervous" },
+      { area: "body" },
+      { area: "r-arm" },
+      { area: "r-leg" }
+    ];
 
-sheetData.cyberwareSegmentsLeft = [
-  { area: "head" },
-  { area: "l-arm" },
-  { area: "l-leg" }
-];
+    sheetData.cyberwareSegmentsLeft = [
+      { area: "head" },
+      { area: "l-arm" },
+      { area: "l-leg" }
+    ];
+
+    const ZONE_I18N = {
+      "head": "Head", "body": "Torso", "nervous": "Nervous",
+      "l-arm": "lArm", "r-arm": "rArm", "l-leg": "lLeg", "r-leg": "rLeg"
+    };
+    for (const seg of sheetData.cyberwareSegmentsRight) {
+      const k = ZONE_I18N[seg.area] ?? seg.area;
+      seg.areaLabel = game.i18n.localize(`CYBERPUNK.${k}`);
+    }
+    for (const seg of sheetData.cyberwareSegmentsLeft) {
+      const k = ZONE_I18N[seg.area] ?? seg.area;
+      seg.areaLabel = game.i18n.localize(`CYBERPUNK.${k}`);
+    }
 
 
     // Collect all programs that belong to this actor.
@@ -198,6 +211,13 @@ sheetData.cyberwareSegmentsLeft = [
 
     sheetData.gear.cyberware = allCyber;
     sheetData.gear.cyberwareInventory = allCyber;
+
+    for (const it of allCyber) {
+      const t  = it.system?.cyberwareType;
+      const st = it.system?.cyberwareSubtype;
+      it.system.cwTypeLabel    = t  ? game.i18n.localize(`CYBERPUNK.CWT_ImplantType_${t}`)    : "";
+      it.system.cwSubtypeLabel = st ? game.i18n.localize(`CYBERPUNK.CWT_ImplantSubtype_${st}`) : "";
+    }
 
     const isEquipped = (it) => !!it.system?.equipped;
     const activeCyber = allCyber.filter(isEquipped);

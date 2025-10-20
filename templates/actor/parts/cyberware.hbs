@@ -10,7 +10,7 @@
 </div>
 
 <header class="cyberware-header">
-    <h2>{{CPLocal "Active Chipware"}}</h2>
+    <h2>{{CPLocal "ActiveChipware"}}</h2>
 </header>
 <div class="chip-scroll-wrapper">
     <div class="chipware-container" data-drop-target="active-chips">
@@ -27,7 +27,7 @@
     </div>
 </div>
 <header class="cyberware-header">
-    <h2>{{CPLocal "Active Cyberware"}}</h2>
+    <h2>{{CPLocal "ActiveCyberware"}}</h2>
 </header>
 
 
@@ -36,7 +36,7 @@
         {{#each cyberwareSegmentsRight}}
             <section class="field-list cyberware-field-list active-cyberware-segment"
             data-drop-target="zone:{{this.area}}">
-            <button type="button">{{this.area}}</button>
+            <button type="button">{{this.areaLabel}}</button>
             {{#each (lookup ../cyberZones this.area) as |cyber|}}
                 <div class="field gear item-edit full-width item" data-item-id="{{cyber.id}}" draggable="true">
                 <label>{{cyber.name}}</label>
@@ -57,7 +57,7 @@
         {{#each cyberwareSegmentsLeft}}
             <section class="field-list cyberware-field-list active-cyberware-segment"
                 data-drop-target="zone:{{this.area}}">
-                <button type="button">{{this.area}}</button>
+                <button type="button">{{this.areaLabel}}</button>
                 {{#each (lookup ../cyberZones this.area) as |cyber|}}
                     <div class="field gear item-edit full-width item" data-item-id="{{cyber.id}}" draggable="true">
                     <label>{{cyber.name}}</label>
@@ -91,10 +91,10 @@
             <span class="cyber-hm-loss">{{CPLocal "HumanityLossAbbrev"}}: {{humanityLoss}}</span>
             {{#if cyberwareType}}
             <span>
-            <p class="inactive">{{cyberwareType}}
-            {{~#if cyberwareSubtype~}}
-            ({{cyberwareSubtype}})
-            {{~/if}}</p>
+            <p class="inactive">{{cwTypeLabel}}
+            {{#if cwSubtypeLabel}}
+                ({{cwSubtypeLabel}})
+            {{/if}}</p>
             </span>
             {{/if}}
         {{/with}}

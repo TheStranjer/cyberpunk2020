@@ -510,5 +510,7 @@
     "CYBERPUNK.ChipwareOnlyHere": "Здесь только киберимпланты (чипы).",
     "CYBERPUNK.OnlyChipsHere": "Сюда можно класть только чипы.",
     "CYBERPUNK.OnlyCyberwareHere": "Здесь только киберимпланты.",
-    "CYBERPUNK.ImplantCannotBeInstalledInThisZone": "Имплант нельзя установить в эту зону."
+    "CYBERPUNK.ImplantCannotBeInstalledInThisZone": "Имплант нельзя установить в эту зону.",
+    "CYBERPUNK.ActiveChipware": "Активные чипы",
+    "CYBERPUNK.ActiveCyberware": "Активные импланты"
 }
