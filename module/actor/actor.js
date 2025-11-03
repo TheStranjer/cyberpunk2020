@@ -1,7 +1,7 @@
 import { makeD10Roll, Multiroll } from "../dice.js";
 import { SortOrders, sortSkills } from "./skill-sort.js";
 import { btmFromBT } from "../lookups.js";
-import { properCase, localize, getDefaultSkills, cwHasType } from "../utils.js"
+import { properCase, localize, getDefaultSkills, cwHasType, cwIsEnabled } from "../utils.js"
 
 /**
  * Extend the base Actor document by defining a custom roll data structure which is ideal for the Simple system.
@@ -100,8 +100,10 @@ export class CyberpunkActor extends Actor {
     const allItems = this.items.contents || [];
     const byId = new Map(allItems.map(i => [i.id, i]));
     const eqCyber = (equippedItems || []).filter(i => i.type === "cyberware");
+    const eqCyberEnabled = eqCyber.filter(cwIsEnabled);
 
-    for (const it of eqCyber) {
+    for (const it of eqCyberEnabled) {
+      if (!cwHasType(it, "Implant")) continue;
       const sdp = Number(it.system?.CyberWorkType?.SDP) || 0;
       if (sdp <= 0) continue;
 
@@ -132,8 +134,7 @@ export class CyberpunkActor extends Actor {
     // Cyberware (Characteristic): apply stat bonuses
     Object.values(stats).forEach(s => { s.cyberMod = 0; });
 
-    const charCw = (equippedItems || [])
-      .filter(i => i.type === "cyberware" && cwHasType(i, "Characteristic"));
+    const charCw = (eqCyberEnabled || []).filter(i => cwHasType(i, "Characteristic"));
 
     for (const cw of charCw) {
       const add = cw.system?.CyberWorkType?.Stat || {};
@@ -170,9 +171,8 @@ export class CyberpunkActor extends Actor {
       return max + mod;
     };
 
-    // Equipped cyber-armor implants (once)
-    const cwArmorItems = (equippedItems || [])
-      .filter(i => i.type === "cyberware" && cwHasType(i, "Armor"));
+    // Equipped cyber-armor implants (only enabled)
+    const cwArmorItems = (eqCyberEnabled || []).filter(i => cwHasType(i, "Armor"));
 
     // Inventory armor: accumulate EV and layer SP
     equippedItems.filter(i => i.type === "armor").forEach(armor => {
@@ -320,9 +320,8 @@ export class CyberpunkActor extends Actor {
 
     // CHIPS: only active ones, auto-switching skills to chip level
     const activeChipware = (eqCyber || []).filter(i =>
-      cwHasType(i, "Chip") && !!i.system?.CyberWorkType?.ChipActive
+      cwHasType(i, "Chip") && cwIsEnabled(i) && !!i.system?.CyberWorkType?.ChipActive
     );
-
     // { “Skill Name”: maximum level among active chips }
     const chipMap = {};
     for (const cw of activeChipware) {
@@ -504,6 +503,7 @@ export class CyberpunkActor extends Actor {
 
       const sys = it.system;
       if (!sys?.equipped) continue;
+      if (!cwIsEnabled(sys)) continue;
 
       const cwt = sys.CyberWorkType;
       if (!cwt || !cwHasType(cwt, "Characteristic")) continue;
@@ -528,6 +528,7 @@ export class CyberpunkActor extends Actor {
       const sys = it.system || {};
       if (!sys.equipped) continue;
       if (!cwHasType(sys, "Characteristic")) continue;
+      if (!cwIsEnabled(sys)) continue;
 
       const checks = sys.CyberWorkType?.Checks || {};
       mods.initiative += Number(checks.Initiative || 0) || 0;

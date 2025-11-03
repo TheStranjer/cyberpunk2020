@@ -1,5 +1,5 @@
 import { martialOptions, meleeAttackTypes, meleeBonkOptions, rangedModifiers, weaponTypes } from "../lookups.js"
-import { localize, localizeParam, cwHasType } from "../utils.js"
+import { localize, localizeParam, cwHasType, cwIsEnabled } from "../utils.js"
 import { ModifiersDialog } from "../dialog/modifiers.js"
 import { SortOrders } from "./skill-sort.js";
 
@@ -219,8 +219,8 @@ export class CyberpunkActorSheet extends ActorSheet {
       it.system.cwSubtypeLabel = st ? game.i18n.localize(`CYBERPUNK.CWT_ImplantSubtype_${st}`) : "";
     }
 
-    const isEquipped = (it) => !!it.system?.equipped;
-    const activeCyber = allCyber.filter(isEquipped);
+    const isEnabled = (it) => !!it.system?.equipped && cwIsEnabled(it);
+    const activeCyber = allCyber.filter(isEnabled);
 
     const zoneOf = (it) => String(it.system?.MountZone || it.system?.CyberBodyType?.Type || "");
     const sideOf = (it) => String(it.system?.CyberBodyType?.Location || "");
@@ -238,7 +238,12 @@ export class CyberpunkActorSheet extends ActorSheet {
       const cwt = it.system?.CyberWorkType ?? {};
       return Array.isArray(cwt?.Types) ? cwt.Types.includes("Chip") : cwt?.Type === "Chip";
     };
-    sheetData.chipsActive = allCyber.filter(it => isChip(it) && it.system?.CyberWorkType?.ChipActive === true);
+
+    sheetData.chipsActive = allCyber.filter(it =>
+      isChip(it) &&
+      cwIsEnabled(it) &&
+      it.system?.CyberWorkType?.ChipActive === true
+    );
 
     sheetData.gear.cyberwareActive = activeCyber;
   }

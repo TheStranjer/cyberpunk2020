@@ -135,6 +135,14 @@ _prepareCyberware(sheet) {
     });
   }
 
+  // Ensure EffectMode/EffectActive defaults exist (for legacy items)
+  if (this.item.system?.EffectMode == null) {
+    this.item.updateSource({ "system.EffectMode": "Permanent" });
+  }
+  if (this.item.system?.EffectActive == null) {
+    this.item.updateSource({ "system.EffectActive": false });
+  }
+
   // Characteristic: stats and checks
   const STAT_KEYS = [
     { key: "int", label: L("IntFull") },

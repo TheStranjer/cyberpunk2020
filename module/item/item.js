@@ -1,6 +1,6 @@
 import { weaponTypes, rangedAttackTypes, meleeAttackTypes, fireModes, rangedModifiers, ranges, rangeDCs, rangeResolve, strengthDamageBonus, getMartialActionBonus, martialActions } from "../lookups.js"
 import { Multiroll, makeD10Roll } from "../dice.js"
-import { clamp, deepLookup, localize, localizeParam, rollLocation, cwHasType } from "../utils.js"
+import { clamp, deepLookup, localize, localizeParam, rollLocation, cwHasType, cwIsEnabled } from "../utils.js"
 import { CyberpunkActor } from "../actor/actor.js";
 
 /**
@@ -25,7 +25,10 @@ export class CyberpunkItem extends Item {
   _getWeaponSystem() {
     if (this.type === "weapon") return this.system;
     const cwt = this.system?.CyberWorkType;
-    if (this.type === "cyberware" && cwHasType(cwt, "Weapon")) return cwt.Weapon || {};
+    if (this.type === "cyberware" && cwHasType(cwt, "Weapon")) {
+      if (!cwIsEnabled(this)) return {};
+      return cwt.Weapon || {};
+    }
     return this.system;
   }
 
@@ -112,7 +115,13 @@ export class CyberpunkItem extends Item {
         this.__weaponRoll();
         break;
       case "cyberware":
-        if (cwHasType(this, "Weapon")) this.__weaponRoll();
+        if (cwHasType(this, "Weapon")) {
+          if (!cwIsEnabled(this)) {
+            ui?.notifications?.warn(game.i18n.localize("CYBERPUNK.CWT_WeaponDisabled"));
+            break;
+          }
+          this.__weaponRoll();
+        }
         break;
       default:
         break;
@@ -200,7 +209,8 @@ export class CyberpunkItem extends Item {
 
   // Melee mods are a lot...simpler? I could maybe add swept or something, or opponent dodging. That'll be best once choosing targets is done
   __meleeModTerms({extraMod}) {
-    return [extraMod];
+    const n = Number(extraMod);
+    return Number.isFinite(n) && n !== 0 ? [n] : [];
   }
 
   // Now, this is gonna have to ask the player for different things depending on the weapon
@@ -224,8 +234,14 @@ export class CyberpunkItem extends Item {
   // Let's just pretend the unusual ranged doesn't exist for now
   // Look into `modifiers.js` for the modifier obect
   __weaponRoll(attackMods, targetTokens) {
+    if (this.type === "cyberware" && cwHasType(this, "Weapon") && !cwIsEnabled(this)) {
+      ui?.notifications?.warn(game.i18n.localize("CYBERPUNK.CWT_WeaponDisabled"));
+      return false;
+    }
+
     let owner = this.actor;
     const system = this._getWeaponSystem();
+
 
     if (system.shotsLeft <= 0) {
       ui.notifications.warn(localize("NoAmmo"));
@@ -277,6 +293,11 @@ export class CyberpunkItem extends Item {
 
   // Roll just the attack roll of a weapon, return it
   async attackRoll(attackMods) {
+    if (this.type === "cyberware" && cwHasType(this, "Weapon") && !cwIsEnabled(this)) {
+      ui?.notifications?.warn(game.i18n.localize("CYBERPUNK.CWT_WeaponDisabled"));
+      return await new Roll("0").evaluate();
+    }
+
     const system = this._getWeaponSystem();
     let isRanged = this.isRanged();
 

@@ -511,5 +511,10 @@
     "CYBERPUNK.OnlyCyberwareHere": "Cyberware only here.",
     "CYBERPUNK.ImplantCannotBeInstalledInThisZone": "The implant cannot be installed in this zone.",
     "CYBERPUNK.ActiveChipware": "Active Chipware",
-    "CYBERPUNK.ActiveCyberware": "Active Cyberware"
+    "CYBERPUNK.ActiveCyberware": "Active Cyberware",
+    "CYBERPUNK.CWT_EffectMode": "Effect mode",
+    "CYBERPUNK.CWT_EffectMode_Permanent": "Permanent",
+    "CYBERPUNK.CWT_EffectMode_Activatable": "Activatable",
+    "CYBERPUNK.CWT_EffectActive": "Active",
+    "CYBERPUNK.CWT_WeaponDisabled": "This cyberweapon is not active."
 }

@@ -35,7 +35,20 @@
         <option value="Right" {{#if (equals system.CyberBodyType.Location "Right")}}selected{{/if}}>{{CPLocal "Right"}}</option>
       </select>
     </div>
-  {{/if}}
+    {{/if}}
+    {{!-- Effect mode selector --}}
+    <div class="field">
+      <label>{{CPLocal "CWT_EffectMode"}}</label>
+      <span class="flex-pad"></span>
+      <select name="system.EffectMode">
+        <option value="Permanent"   {{#if (equals system.EffectMode "Permanent")}}selected{{/if}}>{{CPLocal "CWT_EffectMode_Permanent"}}</option>
+        <option value="Activatable" {{#if (equals system.EffectMode "Activatable")}}selected{{/if}}>{{CPLocal "CWT_EffectMode_Activatable"}}</option>
+      </select>
+    </div>
+
+    {{#if (equals system.EffectMode "Activatable")}}
+      {{> (template "fields/boolean") label="CWT_EffectActive" edit="system.EffectActive"}}
+    {{/if}}
 </div>
 
 {{!-- Module block (outside of CyberWorkType) --}}

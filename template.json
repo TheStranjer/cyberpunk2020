@@ -883,6 +883,8 @@
 			"abbrev": "",
 			"humanityLoss": 0,
 			"MountZone": "",
+			"EffectMode": "Permanent",
+			"EffectActive": false,
 
 			"Module": {
 				"IsModule": false,

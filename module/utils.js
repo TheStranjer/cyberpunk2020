@@ -135,3 +135,11 @@ export function cwHasType(obj, type) {
   const types = Array.isArray(cwt?.Types) ? cwt.Types : [];
   return types.includes(type) || cwt?.Type === type;
 }
+
+// Is the implant active, taking into account the mode (Permanent/Activated) and the “Active” flag
+export function cwIsEnabled(obj) {
+  const sys = obj?.system ?? obj;
+  const mode = sys?.EffectMode ?? "Permanent";
+  if (mode === "Activatable") return !!sys?.EffectActive;
+  return true;
+}

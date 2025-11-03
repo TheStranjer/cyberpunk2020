@@ -64,8 +64,8 @@
 
         {{!-- Cyberweapons --}}
         {{#each gear.cyberware as |cyber|}}
-            {{#if (cwHasType cyber.system.CyberWorkType "Weapon")}}
-            <div class="fire-weapon field action" data-item-id="{{cyber.id}}">
+            {{#if (and (cwHasType cyber.system.CyberWorkType "Weapon") (cwIsEnabled cyber))}}
+                <div class="fire-weapon field action" data-item-id="{{cyber.id}}">
                 <div class="no-action field-image item-edit" style="background-image: url({{cyber.img}})" data-item-id="{{cyber.id}}"></div>
                 <label class="name">{{cyber.name}}</label>
                 <span class="flex-pad"></span>

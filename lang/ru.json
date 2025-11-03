@@ -512,5 +512,10 @@
     "CYBERPUNK.OnlyCyberwareHere": "Здесь только киберимпланты.",
     "CYBERPUNK.ImplantCannotBeInstalledInThisZone": "Имплант нельзя установить в эту зону.",
     "CYBERPUNK.ActiveChipware": "Активные чипы",
-    "CYBERPUNK.ActiveCyberware": "Активные импланты"
+    "CYBERPUNK.ActiveCyberware": "Активные импланты",
+    "CYBERPUNK.CWT_EffectMode": "Тип эффекта",
+    "CYBERPUNK.CWT_EffectMode_Permanent": "Постоянный",
+    "CYBERPUNK.CWT_EffectMode_Activatable": "Активируемый",
+    "CYBERPUNK.CWT_EffectActive": "Активен",
+    "CYBERPUNK.CWT_WeaponDisabled": "Кибероружие не активно."
 }
