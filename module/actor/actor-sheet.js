@@ -869,8 +869,12 @@ export class CyberpunkActorSheet extends ActorSheet {
       "system.CyberWorkType.ChipActive": false
     };
 
-    await item.update(updates);
-    this.render(false);
+    await item.update(updates, { render: false });
+    await this._cp_syncChipLevelsToSkills();
+    await this._cp_syncActiveFlagsToSkills();
+
+    if (item.sheet?.rendered) item.sheet.render(true);
+    this.render(true);
   }
 
   /**
@@ -986,8 +990,14 @@ export class CyberpunkActorSheet extends ActorSheet {
       await item.update({
         "system.equipped": true,
         "system.CyberWorkType.ChipActive": true
-      });
-      return this.render(true);
+      }, { render: false });
+
+      await this._cp_syncChipLevelsToSkills();
+      await this._cp_syncActiveFlagsToSkills();
+
+      if (item.sheet?.rendered) item.sheet.render(true);
+      this.render(true);
+      return;
     }
 
     // Return to inventory (bottom)
@@ -1000,8 +1010,14 @@ export class CyberpunkActorSheet extends ActorSheet {
         "system.equipped": false,
         "system.CyberBodyType.Location": "",
         "system.CyberWorkType.ChipActive": false
-      });
-      return this.render(true);
+      }, { render: false });
+
+      await this._cp_syncChipLevelsToSkills();
+      await this._cp_syncActiveFlagsToSkills();
+
+      if (item.sheet?.rendered) item.sheet.render(true);
+      this.render(true);
+      return;
     }
 
     // Installation by zone (auto-route to item's mount)
@@ -1019,8 +1035,14 @@ export class CyberpunkActorSheet extends ActorSheet {
               "system.equipped": true,
               "system.CyberWorkType.ChipActive": true,
               "system.CyberBodyType.Location": ""
-            });
-            return this.render(true);
+            }, { render: false });
+
+            await this._cp_syncChipLevelsToSkills();
+            await this._cp_syncActiveFlagsToSkills();
+
+            if (item.sheet?.rendered) item.sheet.render(true);
+            this.render(true);
+            return;
           }
         }
 
@@ -1047,4 +1069,116 @@ export class CyberpunkActorSheet extends ActorSheet {
 
     return super._onDropItem(event, data);
   }
+  async _cp_syncChipLevelsToSkills() {
+    const actor = this.actor;
+    if (!actor) return;
+
+    const activeChips = actor.items.filter(i =>
+      i.type === "cyberware" &&
+      cwHasType(i, "Chip") &&
+      !!i.system?.CyberWorkType?.ChipActive
+    );
+
+    const agg = {};
+    for (const ch of activeChips) {
+      const skills = ch.system?.CyberWorkType?.ChipSkills || {};
+      for (const [name, lvl] of Object.entries(skills)) {
+        const n = Number(lvl) || 0;
+        agg[name] = Math.max(agg[name] || 0, n);
+      }
+    }
+
+    const skills = actor.items.filter(i => i.type === "skill");
+    const updates = [];
+    const updatedIds = [];
+    const updatedMap = {};
+
+    for (const s of skills) {
+      const want = Number(agg[s.name] || 0);
+      const cur  = Number(s.system?.chipLevel || 0);
+      if (want !== cur) {
+        updates.push({ _id: s.id, "system.chipLevel": want });
+        updatedIds.push(s.id);
+        updatedMap[s.id] = { ...(updatedMap[s.id] || {}), chipLevel: want };
+      }
+    }
+
+    if (updates.length) {
+      await actor.updateEmbeddedDocuments("Item", updates, { render: false });
+
+      this._cp_forceRefreshOpenSkillSheets(updatedMap);
+
+      for (const sid of updatedIds) {
+        const sk = actor.items.get(sid);
+        if (sk?.sheet?.rendered) sk.sheet.render(true);
+      }
+    }
+  }
+
+  _cp_forceRefreshOpenSkillSheets(updatedMap) {
+    // updatedMap: { [skillId]: { isChipped?: boolean, chipLevel?: number } }
+    if (!updatedMap) return;
+
+    for (const [sid, patch] of Object.entries(updatedMap)) {
+      const skill = this.actor.items.get(sid);
+      const sheet = skill?.sheet;
+      if (!sheet?.rendered) continue;
+
+      const html = sheet.element;
+
+      if (Object.prototype.hasOwnProperty.call(patch, "isChipped")) {
+        const $cb = html.find('input[name="system.isChipped"]');
+        if ($cb.length) $cb.prop('checked', !!patch.isChipped).trigger('change');
+      }
+
+      if (Object.prototype.hasOwnProperty.call(patch, "chipLevel")) {
+        const $in = html.find('input[name="system.chipLevel"], select[name="system.chipLevel"]');
+        if ($in.length) $in.val(String(patch.chipLevel)).trigger('change');
+      }
+    }
+  }
+
+  async _cp_syncActiveFlagsToSkills() {
+    const actor = this.actor;
+    if (!actor) return;
+
+    const activeChips = actor.items.filter(i =>
+      i.type === "cyberware" &&
+      cwHasType(i, "Chip") &&
+      !!i.system?.CyberWorkType?.ChipActive
+    );
+
+    const activeMap = {};
+    for (const ch of activeChips) {
+      const skills = ch.system?.CyberWorkType?.ChipSkills || {};
+      for (const name of Object.keys(skills)) activeMap[name] = true;
+    }
+
+    const skills = actor.items.filter(i => i.type === "skill");
+    const updates = [];
+    const updatedIds = [];
+    const updatedMap = {};
+
+    for (const s of skills) {
+      const want = !!activeMap[s.name];
+      const cur  = !!(s.system?.isChipped);
+      if (want !== cur) {
+        updates.push({ _id: s.id, "system.isChipped": want });
+        updatedIds.push(s.id);
+        updatedMap[s.id] = { ...(updatedMap[s.id] || {}), isChipped: want };
+      }
+    }
+
+    if (updates.length) {
+      await actor.updateEmbeddedDocuments("Item", updates, { render: false });
+
+      this._cp_forceRefreshOpenSkillSheets(updatedMap);
+
+      for (const sid of updatedIds) {
+        const sk = actor.items.get(sid);
+        if (sk?.sheet?.rendered) sk.sheet.render(true);
+      }
+    }
+  }
+
 }
