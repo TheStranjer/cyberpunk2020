@@ -78,6 +78,8 @@ export class CyberpunkActor extends Actor {
         }
       }
     }
+
+    const armorLayersByArea = {};
     
     // Sort through this now so we don't have to later
     let equippedItems = this.items.contents.filter(item => {
@@ -158,17 +160,81 @@ export class CyberpunkActor extends Actor {
     const combineSP = (curr, add) => {
       const a = Number(curr) || 0;
       const b = Number(add) || 0;
-      if (!a || !b) return a + b;
+      if (!a) return b;
+      if (!b) return a;
+
       const diff = Math.abs(a - b);
-      const max = Math.max(a, b);
-      let mod = 0;
+      let mod;
       if (diff >= 27) mod = 0;
-      else if (diff >= 21) mod = 2;
-      else if (diff >= 15) mod = 3;
-      else if (diff >= 9) mod = 3;
-      else if (diff >= 5) mod = 4;
-      else mod = 5;
-      return max + mod;
+      else if (diff >= 21) mod = 1;
+      else if (diff >= 15) mod = 2;
+      else if (diff >= 9)  mod = 3;
+      else if (diff >= 5)  mod = 4;
+      else                 mod = 5;
+
+      return Math.max(a, b) + mod;
+    };
+
+    // Maximum possible SP for a set of layers
+    // exact O(N * 2^N) up to N=16
+    const maxLayeredSP = (layers) => {
+      if (!layers || !layers.length) return 0;
+
+      const sp = layers
+        .map(v => Number(v) || 0)
+        .filter(v => v > 0);
+
+      const n = sp.length;
+      if (!n) return 0;
+      if (n === 1) return sp[0];
+
+      // I think this number of layers will be more than enough for common sense
+      const MAX_EXACT_LAYERS = 16;
+
+      if (n <= MAX_EXACT_LAYERS) {
+        const size = 1 << n;
+        const dp = new Array(size);
+        dp[0] = 0;
+
+        for (let mask = 1; mask < size; mask++) {
+          let best = 0;
+
+          for (let i = 0; i < n; i++) {
+            const bit = 1 << i;
+            if (!(mask & bit)) continue;
+
+            const prevMask = mask ^ bit;
+            const val = combineSP(dp[prevMask], sp[i]);
+            if (val > best) best = val;
+          }
+          dp[mask] = best;
+        }
+
+        return dp[size - 1];
+      }
+
+      // Fallback for completely crazy cases (too many layers):
+      // each time, we choose the layer that maximizes the current SP
+      let current = 0;
+      const remaining = sp.slice();
+
+      while (remaining.length) {
+        let bestIdx = 0;
+        let bestVal = combineSP(current, remaining[0]);
+
+        for (let i = 1; i < remaining.length; i++) {
+          const val = combineSP(current, remaining[i]);
+          if (val > bestVal) {
+            bestVal = val;
+            bestIdx = i;
+          }
+        }
+
+        current = bestVal;
+        remaining.splice(bestIdx, 1);
+      }
+
+      return current;
     };
 
     // Equipped cyber-armor implants (only enabled)
@@ -182,20 +248,32 @@ export class CyberpunkActor extends Actor {
       for (const armorArea in armorData.coverage) {
         const location = system.hitLocations[armorArea];
         if (!location) continue;
+
         const addSP = Number(armorData.coverage[armorArea].stoppingPower) || 0;
-        location.stoppingPower = combineSP(location.stoppingPower, addSP);
+        if (addSP <= 0) continue;
+
+        if (!armorLayersByArea[armorArea]) armorLayersByArea[armorArea] = [];
+        armorLayersByArea[armorArea].push(addSP);
       }
     });
 
-    // Cyber-armor: layer SP once after inventory armor
+    // Cyber-armor: collecting SP layers (then we'll calculate them all together)
     for (const cw of cwArmorItems) {
       const locs = cw.system?.CyberWorkType?.Locations || {};
       for (const [areaKey, sp] of Object.entries(locs)) {
         const loc = system.hitLocations[areaKey];
         const addSP = Number(sp) || 0;
         if (!loc || addSP <= 0) continue;
-        loc.stoppingPower = combineSP(loc.stoppingPower, addSP);
+
+        if (!armorLayersByArea[areaKey]) armorLayersByArea[areaKey] = [];
+        armorLayersByArea[areaKey].push(addSP);
       }
+    }
+
+    // After collecting all layers, we calculate the maximum SP by zone
+    for (const [areaKey, area] of Object.entries(system.hitLocations)) {
+      const layers = armorLayersByArea[areaKey] || [];
+      area.stoppingPower = maxLayeredSP(layers);
     }
 
     // Cyber-armor EV: add to total encumbrance
