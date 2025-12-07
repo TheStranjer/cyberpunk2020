@@ -12,6 +12,7 @@ export const makeD10Roll = function(terms, rollData) {
     else {
         terms = [BaseDie]
     }
+    terms = terms.filter(term => term !== null && term !== undefined);
     return new Roll(terms.join(" + "), rollData)
 }
 
