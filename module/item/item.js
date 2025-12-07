@@ -207,7 +207,9 @@ export class CyberpunkItem extends Item {
     let owner = this.actor;
     let system = this.system;
 
-    if (usesAmmo() && system.shotsLeft <= 0) {
+    const usesAmmo = this.usesAmmo();
+
+    if (usesAmmo && system.shotsLeft <= 0) {
       ui.notifications.warn(localize("NoAmmo"));
       return false;
     }
