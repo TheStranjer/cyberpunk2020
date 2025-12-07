@@ -2,7 +2,7 @@
   "id": "cyberpunk2020",
   "title": "Cyberpunk 2020",
   "description": "R. Talsorian Games' Cyberpunk 2020 System",
-  "version": "1.0.4",
+  "version": "1.0.5",
   "compatibility": {
     "minimum": "12",
     "verified": "13",
@@ -236,6 +236,6 @@
   "secondaryTokenAttribute": null,
   "url": "https://github.com/TheStranjer/cyberpunk2020",
   "manifest": "https://raw.githubusercontent.com/TheStranjer/cyberpunk2020/refs/heads/main/system.json",
-  "download": "https://github.com/TheStranjer/cyberpunk2020/raw/refs/heads/main/archive/v1.0.4.zip"
+  "download": "https://github.com/TheStranjer/cyberpunk2020/raw/refs/heads/main/archive/v1.0.5.zip"
 }
   
