@@ -28,6 +28,11 @@ export class CyberpunkItem extends Item {
     return !(system.weaponType === "Melee" || system.weaponType === "Exotic" && Object.keys(meleeAttackTypes).includes(system.attackType));
   }
   
+  usesAmmo() {
+    const system = this.system;
+    return system.shots && system.shots > 0;
+  }
+
   _prepareWeaponData(data) {
     
   }
@@ -202,7 +207,7 @@ export class CyberpunkItem extends Item {
     let owner = this.actor;
     let system = this.system;
 
-    if (system.shotsLeft <= 0) {
+    if (usesAmmo() && system.shotsLeft <= 0) {
       ui.notifications.warn(localize("NoAmmo"));
       return false;
     }
